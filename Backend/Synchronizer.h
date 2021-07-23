@@ -11,7 +11,6 @@
 #include <semaphore.h>
 #include <vector>
 
-#include "BoundedBuffer.cpp"
 #include "SimplePocoHandler.h"
 #include "Sema.cpp"
 
@@ -44,8 +43,6 @@ private:
   pthread_mutex_t coutLock;
 
   std::vector<int> responses;
-
-  BoundedBuffer<std::pair<int, int>> mq;
 
   SimplePocoHandler handler;
   AMQP::Connection connection;

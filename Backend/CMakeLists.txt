@@ -21,4 +21,4 @@ link_libraries(
         Poco::Net
 )
 
-add_executable(Synchronizer main.cpp Synchronizer.cpp BoundedBuffer.cpp Sema.cpp SimplePocoHandler.cpp)
+add_executable(Synchronizer main.cpp Synchronizer.cpp Sema.cpp SimplePocoHandler.cpp)

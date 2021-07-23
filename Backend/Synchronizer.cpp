@@ -13,7 +13,7 @@ Synchronizer::Synchronizer(int N) :
         handler("127.0.0.1", 5672),
         connection(&handler, AMQP::Login("guest", "guest"), "/"),
         channel(&connection),
-        mq(100 * N), reqSema(N), respSema(N)
+        reqSema(N), respSema(N)
 {
     this->N = N;
     lockArray = std::vector<pthread_mutex_t>(N);
@@ -71,35 +71,14 @@ void Synchronizer::sendRequest(int id, int n)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-//    mqPublish(id, n);
-//    std::string request = "0 10";
-    std::string request = std::to_string(id) + " " + std::to_string(n);
-    request += " | ";
+    std::string request = std::to_string(id) + " " + std::to_string(n) + " | ";
     std::cout << "Request is " << request << std::endl;
+
     if (channel.ready())
     {
-//        channel.publish("", "hello", request);
         channel.publish("direct_exchange", "my-routing-key", request);
     } else {
-        std::cout << "Can't publish" << std:: endl;
-    }
-}
-
-void Synchronizer::mqPublish(int id, int n)
-{
-    const std::shared_ptr<std::pair<int, int>> pair = std::make_shared<std::pair<int, int>>(std::pair<int, int>(id, n));
-
-    mq.push_wait(*pair);
-}
-
-void Synchronizer::initListener()
-{
-    while (true)
-    {
-        std::shared_ptr<std::pair<int, int>> resp = mq.pop_wait();
-        respSema.wait(); // WILL RELEASE UPON WORKER COMPLETION
-
-        spawnWorkerThread(resp->first, resp->second);
+        std::cout << "Can't publish, channel unavailable" << std:: endl;
     }
 }
 
@@ -118,8 +97,6 @@ void Synchronizer::startMQHandler()
 
     channel.onReady([&]() {
         std::cout << "Channel is ready!" << std::endl;
-//        channel.publish("direct_exchange", "my-routing-key", "HI FROM C++!");
-//        channel.publish("", "hello", "HELLO FROM C++!");
 
     });
 
@@ -153,7 +130,6 @@ void Synchronizer::start()
     std::cout << "Starting Listener..." << std::endl
               << std::endl;
     startMQHandler();
-//    initListener();
 }
 
 struct State
@@ -180,7 +156,7 @@ void *workerJob(void *arg)
 
     ref[state->id] = 2 * state->n;
 
-    // TODO:vacate the corresponding sema for requester AND RESPONSE SEMA
+    // vacate the corresponding sema for requester AND RESPONSE SEMA
     pthread_mutex_unlock(state->arrayLock);
     state->respSema->notify();
 
@@ -190,7 +166,6 @@ void *workerJob(void *arg)
 void Synchronizer::spawnWorkerThread(int id, int n)
 {
     pthread_t workerThread;
-    // TODO: CREATE APPROPRIATE TUPLE!!!!!
 
     State *state = new State(id, n, &responses, &lockArray[id], &respSema);
 
