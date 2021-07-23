@@ -103,7 +103,7 @@ void Synchronizer::startMQHandler()
     channel.declareExchange("ts-exchange", AMQP::direct);
     channel.declareQueue("ts-generic-request");
     channel.bindQueue("ts-exchange", "ts-generic-request", "generic-request");
-    channel.consume("ts-generic-request", AMQP::noack).onReceived(
+    channel.consume("ts-generic-response", AMQP::noack).onReceived(
             [this](const AMQP::Message &message,
                    uint64_t deliveryTag,
                    bool redelivered)
@@ -154,7 +154,7 @@ void *workerJob(void *arg)
     std::vector<int> *responses = state->responses;
     std::vector<int> &ref = *responses;
 
-    ref[state->id] = 2 * state->n;
+    ref[state->id] = state->n; // NOW, DOUBLING IS DONE IN THE BACKEND
 
     // vacate the corresponding sema for requester AND RESPONSE SEMA
     pthread_mutex_unlock(state->arrayLock);
