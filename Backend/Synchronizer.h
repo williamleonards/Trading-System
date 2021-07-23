@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "BoundedBuffer.cpp"
+#include "SimplePocoHandler.h"
 #include "Sema.cpp"
 
 class Synchronizer
@@ -29,23 +30,26 @@ private:
   void mqPublish(int id, int n);
   void initListener();
   void spawnWorkerThread(int id, int n);
-
+  void startMQHandler();
 
 private:
-
   int N;
+  int threadId;
 
   Semaphore reqSema;
   Semaphore respSema;
 
   pthread_mutex_t threadIdLock;
-  int threadId;
-
   std::vector<pthread_mutex_t> lockArray;
+  pthread_mutex_t coutLock;
+
   std::vector<int> responses;
 
   BoundedBuffer<std::pair<int, int>> mq;
 
-  pthread_mutex_t coutLock;
+  SimplePocoHandler handler;
+  AMQP::Connection connection;
+  AMQP::Channel channel;
+
 };
 #endif //SYNCHRONIZER_SYNCHRONIZER_H

@@ -6,9 +6,14 @@
 #include <thread>
 #include <chrono>
 #include <tuple>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 
 Synchronizer::Synchronizer(int N) :
-mq(100 * N), reqSema(N), respSema(N)
+        handler("127.0.0.1", 5672),
+        connection(&handler, AMQP::Login("guest", "guest"), "/"),
+        channel(&connection),
+        mq(100 * N), reqSema(N), respSema(N)
 {
     this->N = N;
     lockArray = std::vector<pthread_mutex_t>(N);
@@ -66,7 +71,18 @@ void Synchronizer::sendRequest(int id, int n)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    mqPublish(id, n);
+//    mqPublish(id, n);
+//    std::string request = "0 10";
+    std::string request = std::to_string(id) + " " + std::to_string(n);
+    request += " | ";
+    std::cout << "Request is " << request << std::endl;
+    if (channel.ready())
+    {
+//        channel.publish("", "hello", request);
+        channel.publish("direct_exchange", "my-routing-key", request);
+    } else {
+        std::cout << "Can't publish" << std:: endl;
+    }
 }
 
 void Synchronizer::mqPublish(int id, int n)
@@ -87,11 +103,57 @@ void Synchronizer::initListener()
     }
 }
 
+void *startHandler(void *arg)
+{
+
+    SimplePocoHandler *h = (SimplePocoHandler *) arg;
+
+    h->loop();
+}
+
+void Synchronizer::startMQHandler()
+{
+    pthread_t starter;
+    pthread_create(&starter, NULL, &startHandler, (void *) &handler);
+
+    channel.onReady([&]() {
+        std::cout << "Channel is ready!" << std::endl;
+//        channel.publish("direct_exchange", "my-routing-key", "HI FROM C++!");
+//        channel.publish("", "hello", "HELLO FROM C++!");
+
+    });
+
+    channel.declareExchange("direct_exchange", AMQP::direct);
+    channel.declareQueue("hi");
+    channel.bindQueue("direct_exchange", "hi", "my-routing-key");
+    channel.consume("hi", AMQP::noack).onReceived(
+            [this](const AMQP::Message &message,
+                   uint64_t deliveryTag,
+                   bool redelivered)
+            {
+                std::cout << "[x] Received " << message.body() << std::endl << std::endl;
+
+                std::string msg = message.body();
+                std::vector<std::string> tokens;
+                boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of(" "));
+
+                int id = std::stoi(tokens[0]);
+                int n = std::stoi(tokens[1]);
+
+                std::cout << "Request id is " << id << " and n is " << n << std::endl;
+                respSema.wait(); // WILL RELEASE UPON WORKER COMPLETION
+                spawnWorkerThread(id, n);
+            });
+
+    pthread_join(starter, NULL);
+}
+
 void Synchronizer::start()
 {
     std::cout << "Starting Listener..." << std::endl
               << std::endl;
-    initListener();
+    startMQHandler();
+//    initListener();
 }
 
 struct State
@@ -103,7 +165,7 @@ struct State
     Semaphore *respSema;
 
     State(int id_, int n_, std::vector<int> *responses_, pthread_mutex_t *arrayLock_, Semaphore *respSema_) :
-    id(id_), n(n_), responses(responses_), arrayLock(arrayLock_), respSema(respSema_)
+            id(id_), n(n_), responses(responses_), arrayLock(arrayLock_), respSema(respSema_)
     {
     }
 };
