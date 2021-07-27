@@ -15,10 +15,19 @@ LINK_DIRECTORIES(
 )
 
 find_package(Poco REQUIRED Net)
+find_package(Poco REQUIRED Util)
+#find_package(cpprestsdk REQUIRED)
 
 link_libraries(
         /usr/local/lib/libamqpcpp.a
         Poco::Net
+        Poco::Util
+#        cpprestsdk::cpprest
+#        ssl
+#        crypto
+#        boost_system
+#        boost_thread
+#        boost_chrono
 )
 
 add_executable(Dispatcher main.cpp Synchronizer.cpp Sema.cpp SimplePocoHandler.cpp)

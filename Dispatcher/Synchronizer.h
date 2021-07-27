@@ -26,8 +26,6 @@ private:
   void initializeZero(pthread_mutex_t *lock);
   int getAndIncr();
   void sendRequest(int id, int n);
-  void mqPublish(int id, int n);
-  void initListener();
   void spawnWorkerThread(int id, int n);
   void startMQHandler();
 

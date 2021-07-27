@@ -31,6 +31,8 @@ Synchronizer::Synchronizer(int N) :
     pthread_mutex_init(&coutLock, NULL);
 }
 
+Synchronizer::~Synchronizer() {}
+
 void Synchronizer::initializeZero(pthread_mutex_t *lock)
 {
     pthread_mutex_init(lock, NULL);
@@ -84,7 +86,6 @@ void Synchronizer::sendRequest(int id, int n)
 
 void *startHandler(void *arg)
 {
-
     SimplePocoHandler *h = (SimplePocoHandler *) arg;
 
     h->loop();
@@ -122,7 +123,7 @@ void Synchronizer::startMQHandler()
                 spawnWorkerThread(id, n);
             });
 
-    pthread_join(starter, NULL);
+    // TODO: TO BLOCK OR NOT TO BLOCK?? pthread_join(starter, NULL);
 }
 
 void Synchronizer::start()
