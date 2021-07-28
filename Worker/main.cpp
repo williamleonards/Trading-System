@@ -28,18 +28,16 @@ int main() {
 
                 std::string msg = message.body();
                 std::vector<std::string> tokens;
-                boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of(" "));
+                boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of("|"));
 
                 int id = std::stoi(tokens[0]);
-                int n = std::stoi(tokens[1]);
+                std::string n = tokens[1];
 
                 std::cout << "Request id is " << id << " and n is " << n << std::endl;
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-                n = n * 2;
-
-                std::string response = std::to_string(id) + " " + std::to_string(n) + " | ";
+                std::string response = std::to_string(id) + "|" + n + "|";
                 std::cout << "Response is " << response << std::endl;
 
                 if (channel.ready())

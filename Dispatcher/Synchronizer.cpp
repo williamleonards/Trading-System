@@ -26,7 +26,7 @@ Synchronizer::Synchronizer(int N) :
     pthread_mutex_init(&threadIdLock, NULL);
     threadId = 0;
 
-    responses = std::vector<int>(N);
+    responses = std::vector<std::string>(N);
 
     pthread_mutex_init(&coutLock, NULL);
 }
@@ -39,7 +39,7 @@ void Synchronizer::initializeZero(pthread_mutex_t *lock)
     pthread_mutex_lock(lock);
 }
 
-int Synchronizer::query(int n)
+std::string Synchronizer::query(std::string n)
 {
     reqSema.wait();
     int id = getAndIncr();
@@ -48,32 +48,18 @@ int Synchronizer::query(int n)
 
     pthread_mutex_lock(&lockArray[id]); // WILL BE RELEASED BY WORKER THREAD
 
-    int ans = responses[id];
+    std::string ans = responses[id];
 
     reqSema.notify();
-
-    pthread_mutex_lock(&coutLock);
-    std::cout << std::endl;
-    if (ans == 2 * n)
-    {
-        std::cout << "ANSWER CORRECT, which is " << ans << std::endl
-                  << std::endl;
-    }
-    else
-    {
-        std::cout << "WRONG ANSWER, GOT " << ans << std::endl
-                  << std::endl;
-    }
-    pthread_mutex_unlock(&coutLock);
 
     return ans;
 }
 
-void Synchronizer::sendRequest(int id, int n)
+void Synchronizer::sendRequest(int id, std::string n)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    std::string request = std::to_string(id) + " " + std::to_string(n) + " | ";
+    std::string request = std::to_string(id) + "|" + n + "|";
     std::cout << "Request is " << request << std::endl;
 
     if (channel.ready())
@@ -113,10 +99,10 @@ void Synchronizer::startMQHandler()
 
                 std::string msg = message.body();
                 std::vector<std::string> tokens;
-                boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of(" "));
+                boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of("|"));
 
                 int id = std::stoi(tokens[0]);
-                int n = std::stoi(tokens[1]);
+                std::string n = tokens[1];
 
                 std::cout << "Request id is " << id << " and n is " << n << std::endl;
                 respSema.wait(); // WILL RELEASE UPON WORKER COMPLETION
@@ -136,12 +122,12 @@ void Synchronizer::start()
 struct State
 {
     int id;
-    int n;
-    std::vector<int> *responses;
+    std::string n;
+    std::vector<std::string> *responses;
     pthread_mutex_t *arrayLock;
     Semaphore *respSema;
 
-    State(int id_, int n_, std::vector<int> *responses_, pthread_mutex_t *arrayLock_, Semaphore *respSema_) :
+    State(int id_, std::string n_, std::vector<std::string> *responses_, pthread_mutex_t *arrayLock_, Semaphore *respSema_) :
             id(id_), n(n_), responses(responses_), arrayLock(arrayLock_), respSema(respSema_)
     {
     }
@@ -152,8 +138,8 @@ void *workerJob(void *arg)
     State *state = (State *)arg;
 
 
-    std::vector<int> *responses = state->responses;
-    std::vector<int> &ref = *responses;
+    std::vector<std::string> *responses = state->responses;
+    std::vector<std::string> &ref = *responses;
 
     ref[state->id] = state->n; // NOW, DOUBLING IS DONE IN THE BACKEND
 
@@ -164,7 +150,7 @@ void *workerJob(void *arg)
     free(arg);
 }
 
-void Synchronizer::spawnWorkerThread(int id, int n)
+void Synchronizer::spawnWorkerThread(int id, std::string n)
 {
     pthread_t workerThread;
 

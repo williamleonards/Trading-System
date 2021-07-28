@@ -19,14 +19,14 @@ class Synchronizer
 public:
   Synchronizer(int N);
   ~Synchronizer();
-  int query(int n);
+  std::string query(std::string n);
   void start();
 
 private:
   void initializeZero(pthread_mutex_t *lock);
   int getAndIncr();
-  void sendRequest(int id, int n);
-  void spawnWorkerThread(int id, int n);
+  void sendRequest(int id, std::string n);
+  void spawnWorkerThread(int id, std::string n);
   void startMQHandler();
 
 private:
@@ -40,7 +40,7 @@ private:
   std::vector<pthread_mutex_t> lockArray;
   pthread_mutex_t coutLock;
 
-  std::vector<int> responses;
+  std::vector<std::string> responses;
 
   SimplePocoHandler handler;
   AMQP::Connection connection;
