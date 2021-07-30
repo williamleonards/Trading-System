@@ -9,6 +9,10 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
+/*
+ * Request string encoding: <request-id>|<method-name>|<args>...
+ */
+
 Synchronizer::Synchronizer(int N) :
         handler("127.0.0.1", 5672),
         connection(&handler, AMQP::Login("guest", "guest"), "/"),
@@ -39,12 +43,13 @@ void Synchronizer::initializeZero(pthread_mutex_t *lock)
     pthread_mutex_lock(lock);
 }
 
-std::string Synchronizer::query(std::string n)
+std::string Synchronizer::query(std::string args)
 {
     reqSema.wait();
     int id = getAndIncr();
 
-    sendRequest(id, n);
+    std::string request = std::to_string(id) + "|" + args;
+    sendRequest(id, request);
 
     pthread_mutex_lock(&lockArray[id]); // WILL BE RELEASED BY WORKER THREAD
 
@@ -55,11 +60,10 @@ std::string Synchronizer::query(std::string n)
     return ans;
 }
 
-void Synchronizer::sendRequest(int id, std::string n)
+void Synchronizer::sendRequest(int id, std::string request)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    std::string request = std::to_string(id) + "|" + n + "|";
     std::cout << "Request is " << request << std::endl;
 
     if (channel.ready())
@@ -102,11 +106,11 @@ void Synchronizer::startMQHandler()
                 boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of("|"));
 
                 int id = std::stoi(tokens[0]);
-                std::string n = tokens[1];
+                std::string response = tokens[1];
 
-                std::cout << "Request id is " << id << " and n is " << n << std::endl;
+                std::cout << "Request id is " << id << " and response is " << response << std::endl;
                 respSema.wait(); // WILL RELEASE UPON WORKER COMPLETION
-                spawnWorkerThread(id, n);
+                spawnWorkerThread(id, response);
             });
 
     // TODO: TO BLOCK OR NOT TO BLOCK?? pthread_join(starter, NULL);
@@ -122,13 +126,13 @@ void Synchronizer::start()
 struct State
 {
     int id;
-    std::string n;
+    std::string args;
     std::vector<std::string> *responses;
     pthread_mutex_t *arrayLock;
     Semaphore *respSema;
 
-    State(int id_, std::string n_, std::vector<std::string> *responses_, pthread_mutex_t *arrayLock_, Semaphore *respSema_) :
-            id(id_), n(n_), responses(responses_), arrayLock(arrayLock_), respSema(respSema_)
+    State(int id_, std::string args_, std::vector<std::string> *responses_, pthread_mutex_t *arrayLock_, Semaphore *respSema_) :
+            id(id_), args(args_), responses(responses_), arrayLock(arrayLock_), respSema(respSema_)
     {
     }
 };
@@ -141,7 +145,7 @@ void *workerJob(void *arg)
     std::vector<std::string> *responses = state->responses;
     std::vector<std::string> &ref = *responses;
 
-    ref[state->id] = state->n; // NOW, DOUBLING IS DONE IN THE BACKEND
+    ref[state->id] = state->args; // NOW, DOUBLING IS DONE IN THE BACKEND
 
     // vacate the corresponding sema for requester AND RESPONSE SEMA
     pthread_mutex_unlock(state->arrayLock);
@@ -150,11 +154,11 @@ void *workerJob(void *arg)
     free(arg);
 }
 
-void Synchronizer::spawnWorkerThread(int id, std::string n)
+void Synchronizer::spawnWorkerThread(int id, std::string args)
 {
     pthread_t workerThread;
 
-    State *state = new State(id, n, &responses, &lockArray[id], &respSema);
+    State *state = new State(id, args, &responses, &lockArray[id], &respSema);
 
     pthread_create(&workerThread, NULL, &workerJob, (void *)state);
 }

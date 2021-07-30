@@ -22,24 +22,6 @@ using namespace Poco;
 using namespace Poco::Net;
 using namespace Poco::Util;
 
-void *startSync(void *arg)
-{
-    Synchronizer *sync = (Synchronizer *) arg;
-
-    sync->start();
-}
-
-struct State
-{
-    Synchronizer *sync;
-    int n;
-    int connection;
-    State(Synchronizer* sync_, int n_, int connection_): n(n_), connection(connection_)
-    {
-        sync = sync_;
-    }
-};
-
 class HelloRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
@@ -49,7 +31,49 @@ class HelloRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("10");
+        std::string result = sync.query("hello|");
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "Hello from the TS Server!\n";
+    }
+public:
+    HelloRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
+class RegisterRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string result = sync.query("register|william|");
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "Registration complete with ID " << result  << "\n";
+    }
+public:
+    RegisterRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
+class LoginRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string result = sync.query("login|william|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -58,7 +82,7 @@ class HelloRequestHandler: public HTTPRequestHandler
                 << "Hello from the TS Server, result is " << result  << "\n";
     }
 public:
-    HelloRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    LoginRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
 class DeleteOrderRequestHandler: public HTTPRequestHandler
@@ -70,19 +94,19 @@ class DeleteOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("20");
+        std::string result = sync.query("delete|0|0|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Delete successful, result is " << result  << "\n";
+                << "Delete operation complete " << result  << "\n";
     }
 public:
     DeleteOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
-class PlaceOrderRequestHandler: public HTTPRequestHandler
+class BuyOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
@@ -91,19 +115,19 @@ class PlaceOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("30");
+        std::string result = sync.query("buy|0|10|10|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Place order successful, result is " << result  << "\n";
+                << "Place buy order successful, result is " << result  << "\n";
     }
 public:
-    PlaceOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    BuyOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
-class ViewTreeRequestHandler: public HTTPRequestHandler
+class SellOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
@@ -112,16 +136,58 @@ class ViewTreeRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("40");
+        std::string result = sync.query("sell|0|10|10|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View tree successful, result is " << result  << "\n";
+                << "Place sell order successful, result is " << result  << "\n";
     }
 public:
-    ViewTreeRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    SellOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
+class ViewBuyTreeRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string result = sync.query("buy-tree|");
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "View buy tree successful, result is " << result  << "\n";
+    }
+public:
+    ViewBuyTreeRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
+class ViewSellTreeRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string result = sync.query("sell-tree|");
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "View sell tree successful, result is " << result  << "\n";
+    }
+public:
+    ViewSellTreeRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
 class ViewPendingOrderRequestHandler: public HTTPRequestHandler
@@ -133,7 +199,7 @@ class ViewPendingOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("50");
+        std::string result = sync.query("pending|0|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -145,7 +211,7 @@ public:
     ViewPendingOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
-class ViewOrderHistoryRequestHandler: public HTTPRequestHandler
+class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
@@ -154,17 +220,39 @@ class ViewOrderHistoryRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("60");
+        std::string result = sync.query("buy-history|0|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View order history successful, result is " << result  << "\n";
+                << "View buy history successful, result is " << result  << "\n";
     }
 public:
-    ViewOrderHistoryRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewBuyHistoryRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
+
+class ViewSellHistoryRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string result = sync.query("sell-history|0|");
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "View sell history successful, result is " << result  << "\n";
+    }
+public:
+    ViewSellHistoryRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
 class UnknownRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
@@ -174,13 +262,13 @@ class UnknownRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("70");
+        std::string result = sync.query("hahaha|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Unknown request, result is " << result  << "\n";
+                << "Unknown request, response from server: " << result  << "\n";
     }
 public:
     UnknownRequestHandler(Synchronizer &sync_) : sync(sync_) {}
@@ -196,25 +284,45 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
         {
             return new HelloRequestHandler(sync);
         }
+        else if (path == "/register")
+        {
+            return new RegisterRequestHandler(sync);
+        }
+        else if (path == "/login")
+        {
+            return new LoginRequestHandler(sync);
+        }
         else if (path == "/delete")
         {
             return new DeleteOrderRequestHandler(sync);
         }
-        else if (path == "/place")
+        else if (path == "/buy")
         {
-            return new PlaceOrderRequestHandler(sync);
+            return new BuyOrderRequestHandler(sync);
         }
-        else if (path == "/tree")
+        else if (path == "/sell")
         {
-            return new ViewTreeRequestHandler(sync);
+            return new SellOrderRequestHandler(sync);
+        }
+        else if (path == "/buy-tree")
+        {
+            return new ViewBuyTreeRequestHandler(sync);
+        }
+        else if (path == "/sell-tree")
+        {
+            return new ViewSellTreeRequestHandler(sync);
         }
         else if (path == "/pending")
         {
             return new ViewPendingOrderRequestHandler(sync);
         }
-        else if (path == "/history")
+        else if (path == "/buy-history")
         {
-            return new ViewOrderHistoryRequestHandler(sync);
+            return new ViewBuyHistoryRequestHandler(sync);
+        }
+        else if (path == "/sell-history")
+        {
+            return new ViewSellHistoryRequestHandler(sync);
         }
         else {
             return new UnknownRequestHandler(sync);

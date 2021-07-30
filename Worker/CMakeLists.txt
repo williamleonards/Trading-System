@@ -21,4 +21,4 @@ link_libraries(
         Poco::Net
 )
 
-add_executable(Worker main.cpp SimplePocoHandler.cpp)
+add_executable(Worker main.cpp SimplePocoHandler.cpp Order.cpp Trade.cpp User.cpp TradeEngine.cpp)

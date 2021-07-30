@@ -19,14 +19,14 @@ class Synchronizer
 public:
   Synchronizer(int N);
   ~Synchronizer();
-  std::string query(std::string n);
+  std::string query(std::string args);
   void start();
 
 private:
   void initializeZero(pthread_mutex_t *lock);
   int getAndIncr();
-  void sendRequest(int id, std::string n);
-  void spawnWorkerThread(int id, std::string n);
+  void sendRequest(int id, std::string request);
+  void spawnWorkerThread(int id, std::string args);
   void startMQHandler();
 
 private:
