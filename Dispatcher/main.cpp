@@ -22,6 +22,19 @@ using namespace Poco;
 using namespace Poco::Net;
 using namespace Poco::Util;
 
+std::string extractParams(HTTPServerRequest& request, std::vector<std::string> headers)
+{
+    std::string args = "";
+    for (int i = 0; i < headers.size(); i++)
+    {
+        std::string header = headers[i];
+        std::string arg = request.get(header);
+        args += arg;
+        args += "|";
+    }
+    return args;
+}
+
 class HelloRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
@@ -52,7 +65,20 @@ class RegisterRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("register|william|");
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"name"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception on field " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("register|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -64,6 +90,7 @@ public:
     RegisterRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
+// TODO: COMPLETE LOGIN SERVICE AND CALL USING THIS FUNCTION
 class LoginRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
@@ -94,13 +121,26 @@ class DeleteOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("delete|0|0|");
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"userId", "orderId"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception on field " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("delete|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Delete operation complete " << result  << "\n";
+                << result  << "\n";
     }
 public:
     DeleteOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
@@ -115,8 +155,20 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("buy|0|10|10|");
+        std::string args;
 
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"userId", "price", "amount"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("buy|" + args);
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
@@ -136,7 +188,20 @@ class SellOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("sell|0|10|10|");
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"userId", "price", "amount"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("sell|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -199,7 +264,20 @@ class ViewPendingOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("pending|0|");
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"userId"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("pending|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -220,7 +298,20 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("buy-history|0|");
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"userId"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("buy-history|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -241,7 +332,21 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("sell-history|0|");
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"userId"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        // TODO: ADD EXCEPTION HANDLING FOR PARSE EXCEPTIONS THROWN BY WORKER
+        std::string result = sync.query("sell-history|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -262,7 +367,7 @@ class UnknownRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("hahaha|");
+        std::string result = sync.query("unknown-request|");
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");

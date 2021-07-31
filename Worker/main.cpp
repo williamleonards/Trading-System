@@ -172,27 +172,11 @@ int main()
                 std::vector<std::string> tokens;
                 boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of("|"));
 
-//                int id = std::stoi(method);
-//                std::string n = tokens[1];
-//
-//                std::cout << "Request id is " << id << " and n is " << n << std::endl;
-//
-//                std::this_thread::sleep_for(std::chrono::milliseconds(200));
-//
-//                std::string response = std::to_string(id) + "|" + n + "|";
-//                std::cout << "Response is " << response << std::endl;
-//
-//                if (channel.ready())
-//                {
-//                    channel.publish("ts-exchange", "generic-response", response);
-//                } else {
-//                    std::cout << "Can't publish, channel unavailable" << std::endl;
-//                }
-
                 std::string method = tokens[1];
 
                 std::string response;
 
+                // TODO: ADD EXCEPTION HANDLING FOR STOI PARSE EXCEPTIONS
                 if (method == "register")
                 {
                     response = processRegisterRequest(ts, tokens);

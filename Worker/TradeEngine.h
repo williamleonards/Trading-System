@@ -40,6 +40,7 @@ public:
      * at a price specified on each of the buy order.*/
     vector<Trade *> placeSellOrder(int issuerID, int price, int amt);
 
+    // TODO: RETURN AN INT/BOOL REPRESENTING STATUS CODE
     // Delete an order specified by `issuerID` and `orderID`. Does nothing if parameters are invalid.
     void deleteOrder(int issuerID, int orderID);
 
@@ -59,11 +60,6 @@ public:
 
     // Gets the sell history of the user with id `userID`. Returns a vector of trades involving the user as the seller.
     vector<Trade *> *getSellTrades(int userID);
-
-    /* Gets the total volume in the entire system: sum of volumes in buy and sell tree,
-     * as well as the total volume of trades (this is double counted). Excludes deleted volumes.
-     * Only used for concurrency tests. */
-    long long getTotalVolume();
 
 private:
     pthread_mutex_t usersLock;
@@ -94,6 +90,12 @@ private:
      * Also updates buyers' and sellers' accounts whenever a trade occurs. */
     void consumePendingOrders(bool buyOrSell, int &issuerID, int &remaining, int &amtLeft, int &currPrice,
                               list<Order *> *orders, vector<Trade *> &ans);
+
+    // TODO: Make friend method for testing purposes
+    /* Gets the total volume in the entire system: sum of volumes in buy and sell tree,
+     * as well as the total volume of trades (this is double counted). Excludes deleted volumes.
+     * Only used for concurrency tests. */
+    long long getTotalVolume();
 };
 
 #endif //WORKER_TRADEENGINE_H
