@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(Worker)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 INCLUDE_DIRECTORIES(
         /Users/williamleonards/Documents/vcpkg/installed/x64-osx/include

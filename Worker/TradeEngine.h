@@ -26,6 +26,7 @@ public:
 
     ~TradeEngine();
 
+    // TODO: CONVERT TO STRING USERNAME
     int createUser(string name);
 
     /* Place a new buy order at price `price` with amount (volume) of `amt`
