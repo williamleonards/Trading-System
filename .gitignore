@@ -2,3 +2,6 @@
 .idea
 
 cmake-*
+
+.out
+.DS_Store

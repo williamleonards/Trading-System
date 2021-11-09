@@ -5,98 +5,72 @@
 #ifndef WORKER_TRADEENGINE_H
 #define WORKER_TRADEENGINE_H
 
+#include <iostream>
+#include <vector>
+#include <string>
+#include <list>
+#include <unordered_map>
+#include <map>
+#include <pthread.h>
+
+#include <pqxx/pqxx>
+
+#include <nlohmann/json.hpp>
+
 using namespace std;
 
-#include <iostream>
-#include<vector>
-#include<string>
-#include<list>
-#include<unordered_map>
-#include<map>
-#include<pthread.h>
-
-#include "Order.h"
-#include "Trade.h"
-#include "User.h"
+using json = nlohmann::json;
 
 class TradeEngine
 {
 public:
-    TradeEngine();
+  TradeEngine(string conn);
 
-    ~TradeEngine();
+  // TODO: CONVERT TO STRING USERNAME
+  string createUser(string name, string password);
 
-    // TODO: CONVERT TO STRING USERNAME
-    int createUser(string name);
-
-    /* Place a new buy order at price `price` with amount (volume) of `amt`
+  /* Place a new buy order at price `price` with amount (volume) of `amt`
      * returns a vector of Trades that occur when this order is placed.
      * A trade occurs when the incoming order wants to buy at a price higher than pending sell orders,
      * at a price specified on each of the sell order.*/
-    vector<Trade *> placeBuyOrder(int issuerID, int price, int amt);
+  string placeBuyOrder(string buyer, int price, int amt);
 
-    /* Place a new sell order at price `price` with amount (volume) of `amt`
+  /* Place a new sell order at price `price` with amount (volume) of `amt`
      * returns a vector of Trades that occur when this order is placed.
      * A trade occurs when the incoming order wants to sell at a price lower than pending buy orders,
      * at a price specified on each of the buy order.*/
-    vector<Trade *> placeSellOrder(int issuerID, int price, int amt);
+  string placeSellOrder(string seller, int price, int amt);
 
-    // TODO: RETURN AN INT/BOOL REPRESENTING STATUS CODE
-    // Delete an order specified by `issuerID` and `orderID`. Does nothing if parameters are invalid.
-    void deleteOrder(int issuerID, int orderID);
+  // TODO: RETURN AN INT/BOOL REPRESENTING STATUS CODE
+  // Delete an order specified by `issuerID` and `orderID`. Does nothing if parameters are invalid.
+  string deleteBuyOrder(string username, long long orderID);
 
-    /* Get the volume of orders on the buy tree at all price points (in descending order).
+  // TODO: RETURN AN INT/BOOL REPRESENTING STATUS CODE
+  // Delete an order specified by `issuerID` and `orderID`. Does nothing if parameters are invalid.
+  string deleteSellOrder(string username, long long orderID);
+
+  /* Get the volume of orders on the buy tree at all price points (in descending order).
      * Returns a vector of (price point, volume of orders at that price). */
-    vector<pair<int, int>> getPendingBuys();
+  string getBuyVolumes();
 
-    /* Get the volume of orders on the sell tree at all price points (in ascending order).
+  /* Get the volume of orders on the sell tree at all price points (in ascending order).
      * Returns a vector of (price point, volume of orders at that price). */
-    vector<pair<int, int>> getPendingSells();
+  string getSellVolumes();
 
-    // Returns a vector of orders that are pending from the user with id `userID`
-    vector<Order *> getPendingOrders(int userID);
+  // Returns a vector of orders that are pending from the user with id `userID`
+  string getPendingBuyOrders(string username);
 
-    // Gets the buy history of the user with id `userID`. Returns a vector of trades involving the user as the buyer.
-    vector<Trade *> *getBuyTrades(int userID);
+  // Returns a vector of orders that are pending from the user with id `userID`
+  string getPendingSellOrders(string username);
 
-    // Gets the sell history of the user with id `userID`. Returns a vector of trades involving the user as the seller.
-    vector<Trade *> *getSellTrades(int userID);
+  // Gets the buy history of the user with id `userID`. Returns a vector of trades involving the user as the buyer.
+  string getBuyTrades(string username);
+
+  // Gets the sell history of the user with id `userID`. Returns a vector of trades involving the user as the seller.
+  string getSellTrades(string username);
 
 private:
-    pthread_mutex_t usersLock;
-    pthread_mutex_t buyLock;
-    pthread_mutex_t sellLock;
-    unordered_map<int, User *> users;
-    int nextUserID;
-
-    // Ordered map from a price point to a pair of (volume of sell orders, list of sell orders) at that price
-    map<int, pair<int, list<Order *> *> *> sellTree;
-
-    // Ordered map from a price point to a pair of (volume of buy orders, list of buy orders) at that price
-    map<int, pair<int, list<Order *> *> *> buyTree;
-
-    // helper methods
-
-    // Check if the first order in `lst` is stale (i.e., deleted). If so, remove it from `lst`.
-    bool firstOrderIsStale(list<Order *> *lst);
-
-    // Put the remaining order with the specified parameters to the corresponding tree.
-    void putRemainingOrderOnTree(bool buyOrSell, User *user, int price, int remaining);
-
-    // Generate trades that occur when an incoming trade is placed and update its remaining quantity accordingly.
-    vector<Trade *> generateTrades(bool buyOrSell, int &price, int &issuerID, int &remaining);
-
-    /* Consume pending orders at price point `currPrice` and put it into `ans`. Updates the volume at this price point
-     * (`amtLeft`) and the remaining quantity in the incoming order (`remaining`) accordingly.
-     * Also updates buyers' and sellers' accounts whenever a trade occurs. */
-    void consumePendingOrders(bool buyOrSell, int &issuerID, int &remaining, int &amtLeft, int &currPrice,
-                              list<Order *> *orders, vector<Trade *> &ans);
-
-    // TODO: Make friend method for testing purposes
-    /* Gets the total volume in the entire system: sum of volumes in buy and sell tree,
-     * as well as the total volume of trades (this is double counted). Excludes deleted volumes.
-     * Only used for concurrency tests. */
-    long long getTotalVolume();
+  pqxx::connection C;
 };
 
 #endif //WORKER_TRADEENGINE_H

@@ -5,452 +5,529 @@
 #include "TradeEngine.h"
 #include <pthread.h>
 
-TradeEngine::TradeEngine()
+TradeEngine::TradeEngine(string conn) : C(conn)
 {
-    nextUserID = 0;
-    pthread_mutex_init(&usersLock, NULL);
-    pthread_mutex_init(&buyLock, NULL);
-    pthread_mutex_init(&sellLock, NULL);
 }
 
-// delete all pending orders, all trades are deleted in ~User()
-TradeEngine::~TradeEngine()
+string TradeEngine::createUser(string name, string password)
 {
-    for (auto p : users)
+    pqxx::work W{C};
+    json response;
+    try
     {
-        delete p.second;
+        string query = "INSERT INTO ts.login (username, password) VALUES ('" +
+                       name + "','" + password + "')";
+        W.exec(query);
+        W.commit();
+        response = {
+            {"createUserResponse", {}}
+        };
     }
-    for (auto p : sellTree)
+    catch (const std::exception &e)
     {
-        list<Order *> *lst = p.second->second;
-        for (Order *ord : *lst)
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::deleteBuyOrder(string username, long long orderId)
+{
+    //lazy deletion (?)
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "DELETE FROM ts.buy_orders WHERE order_id = '" +
+                       to_string(orderId) + "' AND username = '" + username + "')";
+        W.exec(query);
+        W.commit();
+        response = {
+            {"deleteBuyOrderResponse", {}}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::deleteSellOrder(string username, long long orderId)
+{
+    //lazy deletion (?)
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "DELETE FROM ts.sell_orders WHERE order_id = '" +
+                       to_string(orderId) + "' AND username = '" + username + "')";
+        W.exec(query);
+        W.commit();
+        response = {
+            {"deleteSellOrderResponse", {}}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::getBuyVolumes()
+{
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "SELECT price, SUM(amount) FROM ts.buy_orders GROUP BY price ORDER BY price DESC";
+        pqxx::result R{W.exec(query)};
+        json entries;
+        for (auto row : R)
         {
-            delete ord;
+            int price = row[0].as<int>();
+            int vol = row[1].as<int>();
+            json entry = {
+                {"price", price},
+                {"volume", vol}
+            };
+            entries.push_back(entry);
         }
-        delete p.second;
+        response = {
+            {"getBuyVolumesResponse", entries}
+        };
     }
-    for (auto p : buyTree)
+    catch (const std::exception &e)
     {
-        list<Order *> *lst = p.second->second;
-        for (Order *ord : *lst)
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::getSellVolumes()
+{
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "SELECT price, SUM(amount) FROM ts.sell_orders GROUP BY price ORDER BY price ASC";
+        pqxx::result R{W.exec(query)};
+        json entries;
+        for (auto row : R)
         {
-            delete ord;
+            int price = row[0].as<int>();
+            int vol = row[1].as<int>();
+            json entry = {
+                {"price", price},
+                {"volume", vol}
+            };
+            entries.push_back(entry);
         }
-        delete p.second;
+        response = {
+            {"getSellVolumesResponse", entries}
+        };
     }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
 }
 
-int TradeEngine::createUser(string name)
+string TradeEngine::placeBuyOrder(string buyer, int price, int amt)
 {
-
-    pthread_mutex_lock(&usersLock);
-
-    User *user = new User(nextUserID, name);
-    users[nextUserID] = user;
-
-    if (nextUserID == (1 << 31) - 1)
+    json response;
+    try
     {
-        cout << "User limit reached" << endl;
-        return -1;
-    }
+        pqxx::work W{C};
+        int currAmt = amt;
+        ostringstream query;
+        query << "SELECT * FROM ts.sell_orders WHERE price = LEAST((SELECT MIN(price) "
+            << "FROM ts.sell_orders), " << price << ") ORDER BY order_id ASC";
 
-    nextUserID++;
-    int ans = nextUserID - 1;
-
-    pthread_mutex_unlock(&usersLock);
-
-    return ans;
-}
-
-vector<Trade *> TradeEngine::placeBuyOrder(int issuerID, int price, int amt)
-{
-
-    pthread_mutex_lock(&usersLock);
-    pthread_mutex_lock(&buyLock);
-    pthread_mutex_lock(&sellLock);
-
-    User *user = users[issuerID];
-    vector<Trade *> ans;
-
-    if (user == NULL)
-    {
-        cout << "User ID not known" << endl;
-        return ans;
-    }
-
-    int remaining = amt;
-    // generate trades by matching the incoming order with pending sell orders
-    ans = generateTrades(true, price, issuerID, remaining);
-
-    if (remaining > 0)
-    { // put surplus amount on buy tree
-        putRemainingOrderOnTree(true, user, price, remaining);
-    }
-
-    pthread_mutex_unlock(&sellLock);
-    pthread_mutex_unlock(&buyLock);
-    pthread_mutex_unlock(&usersLock);
-
-    return ans;
-}
-
-vector<Trade *> TradeEngine::placeSellOrder(int issuerID, int price, int amt)
-{
-
-    pthread_mutex_lock(&usersLock);
-    pthread_mutex_lock(&buyLock);
-    pthread_mutex_lock(&sellLock);
-
-    User *user = users[issuerID];
-    vector<Trade *> ans;
-
-    if (user == NULL)
-    {
-        cout << "User ID not known" << endl;
-        return ans;
-    }
-
-    int remaining = amt;
-
-    // generate trades by matching the incoming order with pending buy orders
-    ans = generateTrades(false, price, issuerID, remaining);
-
-    if (remaining > 0)
-    { // put surplus amount on sell tree
-        putRemainingOrderOnTree(false, user, price, remaining);
-    }
-
-    pthread_mutex_unlock(&sellLock);
-    pthread_mutex_unlock(&buyLock);
-    pthread_mutex_unlock(&usersLock);
-
-    return ans;
-}
-
-void TradeEngine::deleteOrder(int issuerID, int orderID)
-{ //lazy deletion
-
-    pthread_mutex_lock(&usersLock);
-    pthread_mutex_lock(&buyLock);
-    pthread_mutex_lock(&sellLock);
-
-    User *user = users[issuerID];
-
-    if (user == NULL)
-    {
-        pthread_mutex_unlock(&sellLock);
-        pthread_mutex_unlock(&buyLock);
-        pthread_mutex_unlock(&usersLock);
-        return;
-    }
-
-    unordered_map<int, Order *> *userOrders = (user->getOrders());
-
-    if (userOrders->count(orderID) == 0)
-    {
-        pthread_mutex_unlock(&sellLock);
-        pthread_mutex_unlock(&buyLock);
-        pthread_mutex_unlock(&usersLock);
-        return;
-    }
-
-    Order *order = userOrders->at(orderID);
-    int price = order->getPrice();
-    pair<int, list<Order *> *> *p = order->getType() ? buyTree[price] : sellTree[price];
-
-    if (p == NULL)
-    {
-        pthread_mutex_unlock(&sellLock);
-        pthread_mutex_unlock(&buyLock);
-        pthread_mutex_unlock(&usersLock);
-        return;
-    }
-
-    p->first -= order->getAmt();
-    order->setInvalid();
-    userOrders->erase(orderID);
-
-    pthread_mutex_unlock(&sellLock);
-    pthread_mutex_unlock(&buyLock);
-    pthread_mutex_unlock(&usersLock);
-}
-
-vector<pair<int, int>> TradeEngine::getPendingBuys()
-{
-
-    pthread_mutex_lock(&buyLock);
-
-    vector<pair<int, int>> v;
-
-    for (auto itr = buyTree.rbegin(); itr != buyTree.rend(); itr++)
-    {
-        int price = itr->first;
-        int vol = itr->second->first;
-        if (vol != 0)
+        pqxx::result R{W.exec(query.str())};
+        vector<pair<long long, int>> partiallyConvertedOrders;
+        json trades;
+        while (R.size() > 0 && currAmt > 0)
         {
-            v.push_back(pair<int, int>(price, vol));
+            int currPrice = R[0][3].as<int>();
+            for (auto row : R)
+            {
+                long long order_id = row[0].as<long long>();
+                string seller = row[1].as<string>();
+                int amt = row[2].as<int>();
+                int sellPrice = row[3].as<int>();
+                if (currAmt >= amt)
+                {
+                    json trade = {
+                        {"price", sellPrice},
+                        {"amount", amt},
+                        {"buyer", buyer},
+                        {"seller", seller}
+                    };
+                    trades.push_back(trade);
+                    currAmt -= amt;
+                }
+                else
+                {
+                    json trade = {
+                        {"price", sellPrice},
+                        {"amount", currAmt},
+                        {"buyer", buyer},
+                        {"seller", seller}
+                    };
+                    partiallyConvertedOrders.push_back(make_pair(order_id, amt - currAmt));
+                    trades.push_back(trade);
+                    currAmt = 0;
+                    break; // BREAK WHICH LOOP?
+                }
+            }
+            // delete fully converted orders
+            ostringstream deleteQuery;
+            deleteQuery << "DELETE FROM ts.buy_orders WHERE price = " << currPrice;
+            if (partiallyConvertedOrders.size() > 0)
+            {
+                deleteQuery << " AND order_id < " << partiallyConvertedOrders[0].first;
+            }
+            W.exec(deleteQuery.str());
+            R = {W.exec(query.str())}; // CONFIRM HOW TO DO THIS
         }
-    }
-
-    pthread_mutex_unlock(&buyLock);
-
-    return v;
-}
-
-vector<pair<int, int>> TradeEngine::getPendingSells()
-{
-
-    pthread_mutex_lock(&sellLock);
-
-    vector<pair<int, int>> v;
-
-    for (auto itr = sellTree.begin(); itr != sellTree.end(); itr++)
-    {
-        int price = itr->first;
-        int vol = itr->second->first;
-        if (vol != 0)
+        // update partially converted order (if any)
+        for (int i = 0; i < partiallyConvertedOrders.size(); i++)
         {
-            v.push_back(pair<int, int>(price, vol));
+            ostringstream updateQuery;
+            int amountLeft = partiallyConvertedOrders[i].second;
+            long long order_id = partiallyConvertedOrders[i].first;
+            updateQuery << "UPDATE ts.sell_orders SET amount = " << amountLeft
+                << " WHERE order_id = " << order_id;
+            W.exec(updateQuery.str());
         }
-    }
-
-    pthread_mutex_unlock(&sellLock);
-
-    return v;
-}
-
-vector<Order *> TradeEngine::getPendingOrders(int userID)
-{
-
-    pthread_mutex_lock(&usersLock);
-
-    User *user = users[userID];
-    vector<Order *> ans;
-
-    if (user == NULL)
-    {
-        cout << "User ID not known" << endl;
-        return ans;
-    }
-
-    auto orders = user->getOrders();
-
-    for (auto itr = orders->begin(); itr != orders->end(); itr++)
-    {
-        ans.push_back(itr->second);
-    }
-
-    pthread_mutex_unlock(&usersLock);
-
-    return ans;
-}
-
-vector<Trade *> *TradeEngine::getBuyTrades(int userID)
-{
-
-    pthread_mutex_lock(&usersLock);
-    User *user = users[userID];
-    pthread_mutex_unlock(&usersLock);
-
-    if (user == NULL)
-    {
-        cout << "User ID not known" << endl;
-        return nullptr;
-    }
-
-    return user->getBought();
-}
-
-vector<Trade *> *TradeEngine::getSellTrades(int userID)
-{
-
-    pthread_mutex_lock(&usersLock);
-    User *user = users[userID];
-    pthread_mutex_unlock(&usersLock);
-
-    if (user == NULL)
-    {
-        cout << "User ID not known" << endl;
-        return nullptr;
-    }
-
-    return user->getSold();
-}
-
-long long TradeEngine::getTotalVolume()
-{
-
-    long long totalVol = 0;
-
-    vector<pair<int, int>> buyTree = getPendingBuys();
-    vector<pair<int, int>> sellTree = getPendingSells();
-
-    for (int i = 0; i < buyTree.size(); i++)
-    {
-        totalVol += buyTree[i].second;
-    }
-
-    for (int i = 0; i < sellTree.size(); i++)
-    {
-        totalVol += sellTree[i].second;
-    }
-
-    for (auto itr = users.begin(); itr != users.end(); itr++)
-    {
-        User *user = itr->second;
-        vector<Trade *> *bought = user->getBought();
-        for (int i = 0; i < bought->size(); i++)
+        // insert newly created trades
+        for (int i = 0; i < trades.size(); i++)
         {
-            totalVol += bought->at(i)->getAmt();
+            json &trade = trades[i];
+            // CONFIRM THE SYNTAX
+            int tradePrice = trade["price"].get<int>();
+            int tradeAmount = trade["amount"].get<int>();
+            string tradeBuyer = "'" + trade["buyer"].get<string>() + "'";
+            string tradeSeller = "'" + trade["seller"].get<string>() + "'";
+
+            ostringstream insertTradeQuery;
+            insertTradeQuery << "INSERT INTO ts.trades (amount, price, buyer, seller)" 
+                << " VALUES (" << tradeAmount << ", "
+                << tradePrice << ", " << tradeBuyer << ", " << tradeSeller << ")";
+            W.exec(insertTradeQuery.str());
         }
-        vector<Trade *> *sold = user->getSold();
-        for (int i = 0; i < sold->size(); i++)
+        // if some amount left untraded, insert to buy_orders
+        if (currAmt > 0)
         {
-            totalVol += sold->at(i)->getAmt();
+            ostringstream insertOrderQuery;
+            insertOrderQuery << "INSERT INTO ts.buy_orders (username, amount, price) " 
+                << " VALUES (" << buyer << ", " 
+                << currAmt << ", " << price << ", true)";
+            W.exec(insertOrderQuery.str());
         }
+        W.commit();
+        response = {
+            {"placeBuyOrderResponse", trades}
+        };
     }
-
-    return totalVol;
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
 }
 
-// helper methods defined below
-bool TradeEngine::firstOrderIsStale(list<Order *> *lst)
+string TradeEngine::placeSellOrder(string seller, int price, int amt)
 {
-
-    Order *first = lst->front();
-
-    if (!first->checkValid())
+    json response;
+    try
     {
-        lst->pop_front();
-        delete first;
-        return true;
-    }
+        pqxx::work W{C};
+        int currAmt = amt;
+        ostringstream query;
+        query << "SELECT * FROM ts.buy_orders WHERE price = GREATEST((SELECT MAX(price) "
+            << "FROM ts.buy_orders), " << price << ") ORDER BY order_id ASC";
 
-    return false;
-}
-
-void TradeEngine::putRemainingOrderOnTree(bool buyOrSell, User *user, int price, int remaining)
-{
-
-    map<int, pair<int, list<Order *> *> *> &tree = buyOrSell ? buyTree : sellTree;
-    pair<int, list<Order *> *> *p = tree[price];
-
-    Order *leftover = user->issueOrder(buyOrSell, price, remaining);
-
-    if (p != NULL)
-    {
-        p->first += remaining;
-        p->second->push_back(leftover);
-    }
-    else
-    {
-        list<Order *> *lst = new list<Order *>();
-        lst->push_back(leftover);
-        tree[price] = new pair<int, list<Order *> *>(remaining, lst);
-    }
-}
-
-vector<Trade *> TradeEngine::generateTrades(bool buyOrSell, int &price, int &issuerID, int &remaining)
-{
-
-    vector<Trade *> ans;
-
-    // generate trades when appropriate
-    if (buyOrSell)
-    {
-
-        for (auto itr = sellTree.begin(); itr != sellTree.end(); itr++)
+        pqxx::result R{W.exec(query.str())};
+        vector<pair<long long, int>> partiallyConvertedOrders;
+        json trades;
+        while (R.size() > 0 && currAmt > 0)
         {
-
-            int currPrice = itr->first;
-            if (currPrice > price || remaining <= 0)
-                break;
-
-            int amtLeft = itr->second->first;
-            list<Order *> *orders = itr->second->second;
-
-            // consume pending sell orders at this price point
-            consumePendingOrders(true, issuerID, remaining, amtLeft, currPrice, orders, ans);
-
-            itr->second->first = amtLeft;
+            int currPrice = R[0][3].as<int>();
+            for (auto row : R)
+            {
+                long long order_id = row[0].as<long long>();
+                string buyer = row[1].as<string>();
+                int amt = row[2].as<int>();
+                int buyPrice = row[3].as<int>();
+                if (currAmt >= amt)
+                {
+                    json trade = {
+                        {"price", buyPrice},
+                        {"amount", amt},
+                        {"buyer", buyer},
+                        {"seller", seller}
+                    };
+                    trades.push_back(trade);
+                    currAmt -= amt;
+                }
+                else
+                {
+                    json trade = {
+                        {"price", buyPrice},
+                        {"amount", currAmt},
+                        {"buyer", buyer},
+                        {"seller", seller}
+                    };
+                    partiallyConvertedOrders.push_back(make_pair(order_id, amt - currAmt));
+                    trades.push_back(trade);
+                    currAmt = 0;
+                    break; // BREAK WHICH LOOP?
+                }
+            }
+            // delete fully converted orders
+            ostringstream deleteQuery;
+            deleteQuery << "DELETE FROM ts.buy_orders WHERE price = " << currPrice;
+            if (partiallyConvertedOrders.size() > 0)
+            {
+                deleteQuery << " AND order_id < " << partiallyConvertedOrders[0].first;
+            }
+            W.exec(deleteQuery.str());
+            R = {W.exec(query.str())}; // CONFIRM HOW TO DO THIS
         }
-    }
-    else
-    {
-
-        for (auto itr = buyTree.rbegin(); itr != buyTree.rend(); itr++)
+        // update partially converted order (if any)
+        for (int i = 0; i < partiallyConvertedOrders.size(); i++)
         {
-
-            int currPrice = itr->first;
-            if (currPrice < price || remaining <= 0)
-                break;
-
-            int amtLeft = itr->second->first;
-            list<Order *> *orders = itr->second->second;
-
-            // consume pending buy orders at this price point
-            consumePendingOrders(false, issuerID, remaining, amtLeft, currPrice, orders, ans);
-
-            itr->second->first = amtLeft;
+            ostringstream updateQuery;
+            int amountLeft = partiallyConvertedOrders[i].second;
+            long long order_id = partiallyConvertedOrders[i].first;
+            updateQuery << "UPDATE ts.buy_orders SET amount = " << amountLeft
+                << " WHERE order_id = " << order_id;
+            W.exec(updateQuery.str());
         }
-    }
+        // insert newly created trades
+        for (int i = 0; i < trades.size(); i++)
+        {
+            json &trade = trades[i];
+            // CONFIRM THE SYNTAX
+            int tradePrice = trade["price"].get<int>();
+            int tradeAmount = trade["amount"].get<int>();
+            string tradeBuyer = "'" + trade["buyer"].get<string>() + "'";
+            string tradeSeller = "'" + trade["seller"].get<string>() + "'";
 
-    return ans;
+            ostringstream insertTradeQuery;
+            insertTradeQuery << "INSERT INTO ts.trades (amount, price, buyer, seller)" 
+                << " VALUES (" << tradeAmount << ", "
+                << tradePrice << ", " << tradeBuyer << ", " << tradeSeller << ")";
+            W.exec(insertTradeQuery.str());
+        }
+        // if some amount left untraded, insert to buy_orders
+        if (currAmt > 0)
+        {
+            ostringstream insertOrderQuery;
+            insertOrderQuery << "INSERT INTO ts.sell_orders (username, amount, price)" 
+                << " VALUES (" << seller << ", "
+                << currAmt << ", " << price << ", true)";
+            W.exec(insertOrderQuery.str());
+        }
+        W.commit();
+        response = {
+            {"placeBuyOrderResponse", trades}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
 }
 
-void TradeEngine::consumePendingOrders(bool buyOrSell, int &issuerID, int &remaining, int &amtLeft,
-                                       int &currPrice, list<Order *> *orders, vector<Trade *> &ans)
+string TradeEngine::getPendingBuyOrders(string username)
 {
-
-    while (remaining > 0 && !orders->empty())
+    pqxx::work W{C};
+    json response;
+    try
     {
-
-        if (firstOrderIsStale(orders))
-            continue; // remove if current order is stale and continue
-
-        Order *first = orders->front();
-        int currAmt = first->getAmt();
-        int counterpartyID = first->getIssuerID();
-
-        // figure out who's the buyer and the seller
-        int buyerID = buyOrSell ? issuerID : counterpartyID;
-        int sellerID = buyOrSell ? counterpartyID : issuerID;
-        User *buyer = users[buyerID];
-        User *seller = users[sellerID];
-
-        User *counterparty = users[counterpartyID];
-
-        if (remaining < currAmt)
-        { // current order not finished
-
-            Trade *trade = new Trade(remaining, currPrice, buyerID, sellerID);
-            ans.push_back(trade);
-
-            // update buyer's and seller's finished orders
-            buyer->getBought()->push_back(trade);
-            seller->getSold()->push_back(trade);
-
-            // update first order amount
-            first->setAmt(currAmt - remaining);
-            amtLeft -= remaining;
-            remaining = 0;
+        string query = "SELECT * FROM ts.buy_orders WHERE username = '" +
+                    username + "'";
+        pqxx::result R{W.exec(query)};
+        json entries;
+        for (auto row : R)
+        {
+            long long order_id = row[0].as<long long>();
+            string username = row[1].as<string>();
+            int amt = row[2].as<int>();
+            int price = row[3].as<int>();
+            json entry = {
+                {"order_id", order_id},
+                {"price", price},
+                {"amount", amt},
+                {"price", price}
+            };
+            entries.push_back(entry);
         }
-        else
-        { // current order finished
-
-            Trade *trade = new Trade(currAmt, currPrice, buyerID, sellerID);
-            ans.push_back(trade);
-
-            // update buyer's and seller's finished orders
-            buyer->getBought()->push_back(trade);
-            seller->getSold()->push_back(trade);
-            orders->pop_front();
-
-            // update counterparty's orders
-            counterparty->getOrders()->erase(first->getID());
-            delete first;
-            remaining -= currAmt;
-            amtLeft -= currAmt;
-        }
+        response = {
+            {"getPendingBuyOrdersResponse", entries}
+        };
     }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::getPendingSellOrders(string username)
+{
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "SELECT * FROM ts.sell_orders WHERE username = '" +
+                    username + "'";
+        pqxx::result R{W.exec(query)};
+        json entries;
+        for (auto row : R)
+        {
+            long long order_id = row[0].as<long long>();
+            string username = row[1].as<string>();
+            int amt = row[2].as<int>();
+            int price = row[3].as<int>();
+            json entry = {
+                {"order_id", order_id},
+                {"price", price},
+                {"amount", amt},
+                {"price", price}
+            };
+            entries.push_back(entry);
+        }
+        response = {
+            {"getPendingSellOrdersResponse", entries}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::getBuyTrades(string username)
+{
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "SELECT * FROM ts.trades WHERE buyer = '" +
+                    username + "'";
+        pqxx::result R{W.exec(query)};
+        json entries;
+        for (auto row : R)
+        {
+            long long trade_id = row[0].as<long long>();
+            int amt = row[1].as<int>();
+            int price = row[2].as<int>();
+            string buyer = row[3].as<string>();
+            string seller = row[4].as<string>();
+            json entry = {
+                {"trade_id", trade_id},
+                {"price", price},
+                {"amount", amt},
+                {"buyer", buyer},
+                {"seller", seller}
+            };
+            entries.push_back(entry);
+        }
+        response = {
+            {"getBuyTradesResponse", entries}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::getSellTrades(string username)
+{
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        string query = "SELECT * FROM ts.trades WHERE seller = '" +
+                    username + "'";
+        pqxx::result R{W.exec(query)};
+        json entries;
+        for (auto row : R)
+        {
+            long long trade_id = row[0].as<long long>();
+            int amt = row[1].as<int>();
+            int price = row[2].as<int>();
+            string buyer = row[3].as<string>();
+            string seller = row[4].as<string>();
+            json entry = {
+                {"trade_id", trade_id},
+                {"price", price},
+                {"amount", amt},
+                {"buyer", buyer},
+                {"seller", seller}
+            };
+            entries.push_back(entry);
+        }
+        response = {
+            {"getSellTradesResponse", entries}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
 }

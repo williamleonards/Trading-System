@@ -69,7 +69,7 @@ class RegisterRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"name"});
+            args = extractParams(request, std::vector<std::string>{"username", "password"});
         }
         catch (NotFoundException e)
         {
@@ -112,7 +112,7 @@ public:
     LoginRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
-class DeleteOrderRequestHandler: public HTTPRequestHandler
+class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
@@ -125,7 +125,7 @@ class DeleteOrderRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"userId", "orderId"});
+            args = extractParams(request, std::vector<std::string>{"username", "orderId"});
         }
         catch (NotFoundException e)
         {
@@ -134,16 +134,50 @@ class DeleteOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("delete|" + args);
+        std::string result = sync.query("delete-buy|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << result  << "\n";
+                << result << "\n";
     }
 public:
-    DeleteOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    DeleteBuyOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
+class DeleteSellOrderRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"username", "orderId"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception on field " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("delete-sell|" + args);
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << result << "\n";
+    }
+public:
+    DeleteSellOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
 class BuyOrderRequestHandler: public HTTPRequestHandler
@@ -159,7 +193,7 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"userId", "price", "amount"});
+            args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
         }
         catch (NotFoundException e)
         {
@@ -192,7 +226,7 @@ class SellOrderRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"userId", "price", "amount"});
+            args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
         }
         catch (NotFoundException e)
         {
@@ -255,7 +289,7 @@ public:
     ViewSellTreeRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
-class ViewPendingOrderRequestHandler: public HTTPRequestHandler
+class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
@@ -268,7 +302,7 @@ class ViewPendingOrderRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"userId"});
+            args = extractParams(request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -277,16 +311,50 @@ class ViewPendingOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("pending|" + args);
+        std::string result = sync.query("pending-buy|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View pending order successful, result is " << result  << "\n";
+                << "View pending buy order successful, result is " << result  << "\n";
     }
 public:
-    ViewPendingOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewPendingBuyOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+};
+
+class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string args;
+
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"username"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("pending-sell|" + args);
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "View pending buy order successful, result is " << result  << "\n";
+    }
+public:
+    ViewPendingSellOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
 class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
@@ -302,7 +370,7 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"userId"});
+            args = extractParams(request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -336,7 +404,7 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
 
         try
         {
-            args = extractParams(request, std::vector<std::string>{"userId"});
+            args = extractParams(request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -384,6 +452,7 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
     Synchronizer &sync;
     HTTPRequestHandler* createRequestHandler(const HTTPServerRequest& request)
     {
+        // router class
         std::string path = request.getURI();
         if (path == "/")
         {
@@ -397,9 +466,13 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
         {
             return new LoginRequestHandler(sync);
         }
-        else if (path == "/delete")
+        else if (path == "/delete-buy")
         {
-            return new DeleteOrderRequestHandler(sync);
+            return new DeleteBuyOrderRequestHandler(sync);
+        }
+        else if (path == "/delete-sell")
+        {
+            return new DeleteSellOrderRequestHandler(sync);
         }
         else if (path == "/buy")
         {
@@ -417,9 +490,13 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
         {
             return new ViewSellTreeRequestHandler(sync);
         }
-        else if (path == "/pending")
+        else if (path == "/pending-buy")
         {
-            return new ViewPendingOrderRequestHandler(sync);
+            return new ViewPendingBuyOrderRequestHandler(sync);
+        }
+        else if (path == "/pending-sell")
+        {
+            return new ViewPendingSellOrderRequestHandler(sync);
         }
         else if (path == "/buy-history")
         {
@@ -437,6 +514,7 @@ public:
     DispatcherRequestHandlerFactory(Synchronizer &sync_) : sync(sync_) {}
 };
 
+// ONLY THIS REMAINS ON MAIN
 class WebServerApp: public ServerApplication
 {
     void initialize(Application& self)
