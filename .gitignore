@@ -3,7 +3,7 @@
 
 cmake-*
 
-.out
+*.out
 .DS_Store
 
 Login
