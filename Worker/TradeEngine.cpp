@@ -210,7 +210,7 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt)
             }
             // W.exec(deleteQuery.str());
             // R = {W.exec(query.str())}; // CONFIRM HOW TO DO THIS
-            pqxx::result R{W.exec_prepared("getOrdersWithLowestPrice", price)};
+            R = {W.exec_prepared("getOrdersWithLowestPrice", price)};
         }
         // update partially converted order (if any)
         for (int i = 0; i < partiallyConvertedOrders.size(); i++)
