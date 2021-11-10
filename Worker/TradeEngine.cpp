@@ -155,11 +155,6 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt)
         int currAmt = amt;
         vector<pair<long long, int>> partiallyConvertedOrders;
         json trades;
-        // ostringstream query;
-        // query << "SELECT * FROM ts.sell_orders WHERE price = LEAST((SELECT MIN(price) "
-        //     << "FROM ts.sell_orders), " << price << ") ORDER BY order_id ASC";
-
-        // pqxx::result R{W.exec(query.str())};
         
         pqxx::work W{C};
         pqxx::result R{W.exec_prepared("getOrdersWithLowestPrice", price)};
@@ -195,23 +190,19 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt)
                     partiallyConvertedOrders.push_back(make_pair(order_id, amt - currAmt));
                     trades.push_back(trade);
                     currAmt = 0;
-                    break; // BREAK WHICH LOOP?
+                    break;
                 }
             }
             // delete fully converted orders
-            // ostringstream deleteQuery;
-            // deleteQuery << "DELETE FROM ts.sell_orders WHERE price = " << currPrice;
             if (partiallyConvertedOrders.size() > 0)
             {
-                // deleteQuery << " AND order_id < " << partiallyConvertedOrders[0].first;
                 W.exec_prepared("deleteSellOrdersAtPrice", currPrice, partiallyConvertedOrders[0].first);
             }
             else
             {
                 W.exec_prepared("deleteAllSellOrdersAtPrice", currPrice);
             }
-            // W.exec(deleteQuery.str());
-            // R = {W.exec(query.str())}; // CONFIRM HOW TO DO THIS
+            
             R = {W.exec_prepared("getOrdersWithLowestPrice", price)};
         }
         // update partially converted order (if any)
@@ -220,37 +211,24 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt)
             ostringstream updateQuery;
             int amountLeft = partiallyConvertedOrders[i].second;
             long long order_id = partiallyConvertedOrders[i].first;
-            // updateQuery << "UPDATE ts.sell_orders SET amount = " << amountLeft
-            //     << " WHERE order_id = " << order_id;
-            // W.exec(updateQuery.str());
+
             W.exec_prepared("updatePartialSellOrder", amountLeft, order_id);
         }
         // insert newly created trades
         for (int i = 0; i < trades.size(); i++)
         {
             json &trade = trades[i];
-            // CONFIRM THE SYNTAX
+            
             int tradePrice = trade["price"].get<int>();
             int tradeAmount = trade["amount"].get<int>();
             string tradeBuyer = trade["buyer"].get<string>();
             string tradeSeller = trade["seller"].get<string>();
-
-            // ostringstream insertTradeQuery;
-            // insertTradeQuery << "INSERT INTO ts.trades (amount, price, buyer, seller)" 
-            //     << " VALUES (" << tradeAmount << ", "
-            //     << tradePrice << ", " << tradeBuyer << ", " << tradeSeller << ")";
-            // W.exec(insertTradeQuery.str());
 
             W.exec_prepared("insertTrades", tradeAmount, tradePrice, tradeBuyer, tradeSeller);
         }
         // if some amount left untraded, insert to buy_orders
         if (currAmt > 0)
         {
-            // ostringstream insertOrderQuery;
-            // insertOrderQuery << "INSERT INTO ts.buy_orders (username, amount, price) " 
-            //     << " VALUES (" << buyer << ", " 
-            //     << currAmt << ", " << price << ", true)";
-            // W.exec(insertOrderQuery.str());
             W.exec_prepared("insertBuyOrder", buyer, currAmt, price);
         }
         W.commit();
@@ -277,12 +255,6 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt)
         int currAmt = amt;
         vector<pair<long long, int>> partiallyConvertedOrders;
         json trades;
-
-        // ostringstream query;
-        // query << "SELECT * FROM ts.buy_orders WHERE price = GREATEST((SELECT MAX(price) "
-        //     << "FROM ts.buy_orders), " << price << ") ORDER BY order_id ASC";
-
-        // pqxx::result R{W.exec(query.str())};
 
         pqxx::work W{C};
         pqxx::result R{W.exec_prepared("getOrdersWithHighestPrice", price)};
@@ -318,23 +290,19 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt)
                     partiallyConvertedOrders.push_back(make_pair(order_id, amt - currAmt));
                     trades.push_back(trade);
                     currAmt = 0;
-                    break; // BREAK WHICH LOOP?
+                    break;
                 }
             }
             // delete fully converted orders
-            ostringstream deleteQuery;
-            deleteQuery << "DELETE FROM ts.buy_orders WHERE price = " << currPrice;
             if (partiallyConvertedOrders.size() > 0)
             {
-                // deleteQuery << " AND order_id < " << partiallyConvertedOrders[0].first;
                 W.exec_prepared("deleteBuyOrdersAtPrice", currPrice, partiallyConvertedOrders[0].first);
             }
             else
             {
                 W.exec_prepared("deleteAllBuyOrdersAtPrice", currPrice);
             }
-            // W.exec(deleteQuery.str());
-            // R = {W.exec(query.str())}; // CONFIRM HOW TO DO THIS
+            
             R = {W.exec_prepared("getOrdersWithHighestPrice", price)};
         }
         // update partially converted order (if any)
@@ -343,37 +311,24 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt)
             ostringstream updateQuery;
             int amountLeft = partiallyConvertedOrders[i].second;
             long long order_id = partiallyConvertedOrders[i].first;
-            // updateQuery << "UPDATE ts.buy_orders SET amount = " << amountLeft
-            //     << " WHERE order_id = " << order_id;
-            // W.exec(updateQuery.str());
+            
             W.exec_prepared("updatePartialBuyOrder", amountLeft, order_id);
         }
         // insert newly created trades
         for (int i = 0; i < trades.size(); i++)
         {
             json &trade = trades[i];
-            // CONFIRM THE SYNTAX
+            
             int tradePrice = trade["price"].get<int>();
             int tradeAmount = trade["amount"].get<int>();
             string tradeBuyer = trade["buyer"].get<string>();
             string tradeSeller = trade["seller"].get<string>();
-
-            // ostringstream insertTradeQuery;
-            // insertTradeQuery << "INSERT INTO ts.trades (amount, price, buyer, seller)" 
-            //     << " VALUES (" << tradeAmount << ", "
-            //     << tradePrice << ", " << tradeBuyer << ", " << tradeSeller << ")";
-            // W.exec(insertTradeQuery.str());
 
             W.exec_prepared("insertTrades", tradeAmount, tradePrice, tradeBuyer, tradeSeller);
         }
         // if some amount left untraded, insert to buy_orders
         if (currAmt > 0)
         {
-            // ostringstream insertOrderQuery;
-            // insertOrderQuery << "INSERT INTO ts.sell_orders (username, amount, price)" 
-            //     << " VALUES (" << seller << ", "
-            //     << currAmt << ", " << price << ", true)";
-            // W.exec(insertOrderQuery.str());
             W.exec_prepared("insertSellOrder", seller, currAmt, price);
         }
         W.commit();
