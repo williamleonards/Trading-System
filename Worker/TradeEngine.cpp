@@ -353,9 +353,7 @@ string TradeEngine::getPendingBuyOrders(string username)
     json response;
     try
     {
-        string query = "SELECT * FROM ts.buy_orders WHERE username = '" +
-                    username + "'";
-        pqxx::result R{W.exec(query)};
+        pqxx::result R{W.exec_prepared("getPendingBuyOrders", username)};
         json entries;
         for (auto row : R)
         {
@@ -392,9 +390,7 @@ string TradeEngine::getPendingSellOrders(string username)
     json response;
     try
     {
-        string query = "SELECT * FROM ts.sell_orders WHERE username = '" +
-                    username + "'";
-        pqxx::result R{W.exec(query)};
+        pqxx::result R{W.exec_prepared("getPendingSellOrders", username)};
         json entries;
         for (auto row : R)
         {
@@ -431,9 +427,7 @@ string TradeEngine::getBuyTrades(string username)
     json response;
     try
     {
-        string query = "SELECT * FROM ts.trades WHERE buyer = '" +
-                    username + "'";
-        pqxx::result R{W.exec(query)};
+        pqxx::result R{W.exec_prepared("getBuyTrades", username)};
         json entries;
         for (auto row : R)
         {
@@ -472,9 +466,7 @@ string TradeEngine::getSellTrades(string username)
     json response;
     try
     {
-        string query = "SELECT * FROM ts.trades WHERE seller = '" +
-                    username + "'";
-        pqxx::result R{W.exec(query)};
+        pqxx::result R{W.exec_prepared("getSellTrades", username)};
         json entries;
         for (auto row : R)
         {
@@ -557,4 +549,15 @@ void TradeEngine::prepareStatements()
     string insertTradesSQL = "INSERT INTO ts.trades (amount, price, buyer, seller) VALUES ($1, $2, $3, $4)";
     C.prepare("insertTrades", insertTradesSQL);
 
+    string getPendingBuyOrdersSQL = "SELECT * FROM ts.buy_orders WHERE username = $1";
+    C.prepare("getPendingBuyOrders", getPendingBuyOrdersSQL);
+
+    string getPendingSellOrdersSQL = "SELECT * FROM ts.sell_orders WHERE username = $1";
+    C.prepare("getPendingSellOrders", getPendingSellOrdersSQL); 
+
+    string getBuyTradesSQL = "SELECT * FROM ts.trades WHERE buyer = $1";
+    C.prepare("getBuyTrades", getBuyTradesSQL);
+
+    string getSellTradesSQL = "SELECT * FROM ts.trades WHERE seller = $1";
+    C.prepare("getSellTrades", getSellTradesSQL);
 }
