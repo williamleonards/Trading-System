@@ -2,8 +2,8 @@
 // Created by William Leonard Sumendap on 6/22/21.
 //
 
-#ifndef SYNCHRONIZER_SYNCHRONIZER_H
-#define SYNCHRONIZER_SYNCHRONIZER_H
+#ifndef DISPATCHER_SYNCHRONIZER_H
+#define DISPATCHER_SYNCHRONIZER_H
 
 #include <iostream>
 #include <pthread.h>
@@ -47,4 +47,4 @@ private:
   AMQP::Channel channel;
 
 };
-#endif //SYNCHRONIZER_SYNCHRONIZER_H
+#endif //DISPATCHER_SYNCHRONIZER_H

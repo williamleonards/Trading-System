@@ -17,10 +17,15 @@
 #include "Poco/Net/HTTPServerResponse.h"
 #include "Poco/Net/ServerSocket.h"
 #include "Poco/Util/ServerApplication.h"
+#include "Poco/Net/HTTPCookie.h"
+
+#include <nlohmann/json.hpp>
 
 using namespace Poco;
 using namespace Poco::Net;
 using namespace Poco::Util;
+
+using json = nlohmann::json;
 
 std::string extractParams(HTTPServerRequest& request, std::vector<std::string> headers)
 {
@@ -66,7 +71,6 @@ class RegisterRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "password"});
@@ -94,19 +98,37 @@ public:
 class LoginRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    // SessionService &session;
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("login|william|");
+        std::string args;
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"username", "password"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception on field " << e.message() << "\n";
+            return;
+        }
 
+        std::string result = sync.query("login|" + args);
+        
+        if (result.find("true") != std::string::npos)
+        {
+            // response.addCookie();
+        }
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Hello from the TS Server, result is " << result  << "\n";
+                << "Login executed with " << result  << "\n";
     }
 public:
     LoginRequestHandler(Synchronizer &sync_) : sync(sync_) {}
@@ -122,7 +144,6 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "orderId"});
@@ -156,7 +177,6 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "orderId"});
@@ -190,7 +210,6 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
@@ -223,7 +242,6 @@ class SellOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
@@ -299,7 +317,6 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -333,7 +350,6 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -367,7 +383,6 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -401,7 +416,6 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
