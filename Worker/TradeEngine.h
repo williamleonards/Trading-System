@@ -26,11 +26,8 @@ class TradeEngine
 public:
     TradeEngine(string conn);
 
-    // Register a new user with the specified password
+    // TODO: CONVERT TO STRING USERNAME
     string createUser(string name, string password);
-
-    // Verifies if the user password is correct for login purposes
-    string loginUser(string username, string password);
 
     /* Place a new buy order at price `price` with amount (volume) of `amt`
         * returns a vector of Trades that occur when this order is placed.

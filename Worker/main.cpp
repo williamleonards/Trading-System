@@ -4,7 +4,7 @@
   COMPILE USING:
   g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp -lamqpcpp -lpoconet -lpocofoundation
 
-  g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp TradeEngine.cpp -lpqxx -lpq -lamqpcpp -lpoconet -lpocofoundation -lredis++ -lhiredis -pthread
+  g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp TradeEngine.cpp -lpqxx -lpq -lamqpcpp -lpoconet -lpocofoundation
   
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp Order.cpp Trade.cpp User.cpp TradeEngine.cpp -lamqpcpp -lpoconet -lpocofoundation
   
@@ -35,15 +35,6 @@ std::string processRegisterRequest(TradeEngine &ts, std::vector<std::string> arg
     std::string name = args[2];
     std::string psw = args[3];
     std::string resp = ts.createUser(name, psw);
-    return formResponse(reqId, resp);
-}
-
-std::string processLoginRequest(TradeEngine &ts, std::vector<std::string> args)
-{
-    std::string reqId = args[0];
-    std::string name = args[2];
-    std::string psw = args[3];
-    std::string resp = ts.loginUser(name, psw);
     return formResponse(reqId, resp);
 }
 
@@ -179,10 +170,6 @@ int main()
         if (method == "register")
         {
         response = processRegisterRequest(ts, tokens);
-        }
-        else if (method == "login")
-        {
-        response = processLoginRequest(ts, tokens);
         }
         else if (method == "delete-buy")
         {
