@@ -16,6 +16,7 @@ string TradeEngine::createUser(string name, string password)
     json response;
     try
     {
+        // try catch sufficient, no need to check result
         W.exec_prepared("createUser", name, password);
         W.commit();
         response = {
@@ -63,10 +64,10 @@ string TradeEngine::deleteBuyOrder(string username, long long orderId)
     json response;
     try
     {
-        W.exec_prepared("deleteBuyOrder", orderId, username);
+        pqxx::result R{W.exec_prepared("deleteBuyOrder", orderId, username)};
         W.commit();
         response = {
-            {"deleteBuyOrderResponse", {}}
+            {"deleteBuyOrderResponse", R.size() > 0}
         };
     }
     catch (const std::exception &e)
@@ -548,7 +549,7 @@ void TradeEngine::prepareStatements()
     string getUserPasswordSQL = "SELECT * FROM ts.login WHERE username = $1 AND password = $2";
     C.prepare("getUserPassword", getUserPasswordSQL);
 
-    string deleteBuyOrderSQL = "DELETE FROM ts.buy_orders WHERE order_id = $1 AND username = $2";
+    string deleteBuyOrderSQL = "DELETE FROM ts.buy_orders WHERE order_id = $1 AND username = $2 RETURNING *";
     C.prepare("deleteBuyOrder", deleteBuyOrderSQL);
 
     string deleteSellOrderSQL = "DELETE FROM ts.sell_orders WHERE order_id = $1 AND username = $2";
