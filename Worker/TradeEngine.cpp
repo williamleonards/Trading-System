@@ -16,7 +16,7 @@ string TradeEngine::createUser(string name, string password)
     json response;
     try
     {
-        W.exec_prepared("findUserPassword", name, password);
+        W.exec_prepared("createUser", name, password);
         W.commit();
         response = {
             {"createUserResponse", {}}
@@ -545,6 +545,9 @@ void TradeEngine::prepareStatements()
     string createUserSQL = "INSERT INTO ts.login (username, password) VALUES ($1,$2)";
     C.prepare("createUser", createUserSQL);
 
+    string getUserPasswordSQL = "SELECT * FROM ts.login WHERE username = $1 AND password = $2";
+    C.prepare("getUserPassword", getUserPasswordSQL);
+
     string deleteBuyOrderSQL = "DELETE FROM ts.buy_orders WHERE order_id = $1 AND username = $2";
     C.prepare("deleteBuyOrder", deleteBuyOrderSQL);
 
@@ -601,7 +604,4 @@ void TradeEngine::prepareStatements()
 
     string getSellTradesSQL = "SELECT * FROM ts.trades WHERE seller = $1";
     C.prepare("getSellTrades", getSellTradesSQL);
-
-    string getUserPasswordSQL = "SELECT * FROM ts.login WHERE username = $1 AND password = $2";
-    C.prepare("getUserPassword", getUserPasswordSQL);
 }

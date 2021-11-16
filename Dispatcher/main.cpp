@@ -59,9 +59,7 @@ bool checkSessionToken(HTTPServerRequest& request, SessionManager &sessionServic
 // TODO: IMPLEMENT THIS
 bool loginSuccess(std::string result)
 {
-    // result.find("true") != std::string::npos
-    std::cout << "result is ... " << result << std::endl;
-    return true;
+    return result.find("true") != std::string::npos;
 }
 
 class HelloRequestHandler: public HTTPRequestHandler
