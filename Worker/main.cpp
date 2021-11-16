@@ -53,8 +53,9 @@ std::string processBuyRequest(TradeEngine &ts, std::vector<std::string> args)
     std::string username = args[2];
     int price = stoi(args[3]);
     int amt = stoi(args[4]);
+    std::string ticker = args[5];
 
-    std::string resp = ts.placeBuyOrder(username, price, amt);
+    std::string resp = ts.placeBuyOrder(username, price, amt, ticker);
     return formResponse(reqId, resp);
 }
 
@@ -64,8 +65,9 @@ std::string processSellRequest(TradeEngine &ts, std::vector<std::string> args)
     std::string username = args[2];
     int price = stoi(args[3]);
     int amt = stoi(args[4]);
+    std::string ticker = args[5];
 
-    std::string resp = ts.placeSellOrder(username, price, amt);
+    std::string resp = ts.placeSellOrder(username, price, amt, ticker);
     return formResponse(reqId, resp);
 }
 
@@ -110,16 +112,18 @@ std::string processDeleteSellRequest(TradeEngine &ts, std::vector<std::string> a
 std::string processBuyVolumeRequest(TradeEngine &ts, std::vector<std::string> args)
 {
     std::string reqId = args[0];
+    std::string ticker = args[2];
 
-    std::string resp = ts.getBuyVolumes();
+    std::string resp = ts.getBuyVolumes(ticker);
     return formResponse(reqId, resp);
 }
 
 std::string processSellTreeRequest(TradeEngine &ts, std::vector<std::string> args)
 {
     std::string reqId = args[0];
+    std::string ticker = args[2];
 
-    std::string resp = ts.getSellVolumes();
+    std::string resp = ts.getSellVolumes(ticker);
     return formResponse(reqId, resp);
 }
 
