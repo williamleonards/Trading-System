@@ -36,13 +36,13 @@ public:
         * returns a vector of Trades that occur when this order is placed.
         * A trade occurs when the incoming order wants to buy at a price higher than pending sell orders,
         * at a price specified on each of the sell order.*/
-    string placeBuyOrder(string buyer, int price, int amt);
+    string placeBuyOrder(string buyer, int price, int amt, string ticker);
 
     /* Place a new sell order at price `price` with amount (volume) of `amt`
         * returns a vector of Trades that occur when this order is placed.
         * A trade occurs when the incoming order wants to sell at a price lower than pending buy orders,
         * at a price specified on each of the buy order.*/
-    string placeSellOrder(string seller, int price, int amt);
+    string placeSellOrder(string seller, int price, int amt, string ticker);
 
     // TODO: RETURN AN INT/BOOL REPRESENTING STATUS CODE
     // Delete an order specified by `issuerID` and `orderID`. Does nothing if parameters are invalid.
@@ -54,11 +54,11 @@ public:
 
     /* Get the volume of orders on the buy tree at all price points (in descending order).
         * Returns a vector of (price point, volume of orders at that price). */
-    string getBuyVolumes();
+    string getBuyVolumes(string ticker);
 
     /* Get the volume of orders on the sell tree at all price points (in ascending order).
         * Returns a vector of (price point, volume of orders at that price). */
-    string getSellVolumes();
+    string getSellVolumes(string ticker);
 
     // Returns a vector of orders that are pending from the user with id `userID`
     string getPendingBuyOrders(string username);

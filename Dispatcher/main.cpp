@@ -158,8 +158,8 @@ class LoginRequestHandler: public HTTPRequestHandler
                 << "Login executed with " << result  << "\n";
     }
 public:
-    LoginRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    LoginRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -202,8 +202,8 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
                 << result << "\n";
     }
 public:
-    DeleteBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    DeleteBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -246,8 +246,8 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
                 << result << "\n";
     }
 public:
-    DeleteSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    DeleteSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -273,7 +273,7 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         std::string args;
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
+            args = extractParams(request, std::vector<std::string>{"username", "price", "amount", "ticker"});
         }
         catch (NotFoundException e)
         {
@@ -290,8 +290,8 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
                 << "Place buy order successful, result is " << result  << "\n";
     }
 public:
-    BuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    BuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -316,7 +316,7 @@ class SellOrderRequestHandler: public HTTPRequestHandler
         std::string args;
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
+            args = extractParams(request, std::vector<std::string>{"username", "price", "amount", "ticker"});
         }
         catch (NotFoundException e)
         {
@@ -334,8 +334,8 @@ class SellOrderRequestHandler: public HTTPRequestHandler
                 << "Place sell order successful, result is " << result  << "\n";
     }
 public:
-    SellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    SellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -357,7 +357,19 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("buy-tree|");
+        std::string args;
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"ticker"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("buy-tree|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -366,8 +378,8 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
                 << "View buy tree successful, result is " << result  << "\n";
     }
 public:
-    ViewBuyTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    ViewBuyTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -389,7 +401,19 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("sell-tree|");
+        std::string args;
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"ticker"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sync.query("sell-tree|" + args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
@@ -398,8 +422,8 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
                 << "View sell tree successful, result is " << result  << "\n";
     }
 public:
-    ViewSellTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    ViewSellTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -442,8 +466,8 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
                 << "View pending buy order successful, result is " << result  << "\n";
     }
 public:
-    ViewPendingBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    ViewPendingBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -486,8 +510,8 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
                 << "View pending buy order successful, result is " << result  << "\n";
     }
 public:
-    ViewPendingSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    ViewPendingSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -530,8 +554,8 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
                 << "View buy history successful, result is " << result  << "\n";
     }
 public:
-    ViewBuyHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    ViewBuyHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -575,8 +599,8 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
                 << "View sell history successful, result is " << result  << "\n";
     }
 public:
-    ViewSellHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    ViewSellHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -607,8 +631,8 @@ class UnknownRequestHandler: public HTTPRequestHandler
                 << "Unknown request, response from server: " << result  << "\n";
     }
 public:
-    UnknownRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
-    : sync(sync_),
+    UnknownRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
+    sync(sync_),
     sessionService(sessionService_)
     {}
 };
@@ -679,7 +703,7 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
         }
     }
 public:
-    DispatcherRequestHandlerFactory(Synchronizer &sync_, SessionManager &sessionService_) :
+    DispatcherRequestHandlerFactory(Synchronizer &sync_, SessionManager &sessionService_):
     sync(sync_),
     sessionService(sessionService_)
     {}
@@ -699,8 +723,7 @@ class WebServerApp: public ServerApplication
         Synchronizer sync(10);
         sync.start();
 
-        // SessionManager sessionService("tcp://127.0.0.1:6379", std::chrono::milliseconds(HALF_HOUR));
-        SessionManager sessionService("tcp://127.0.0.1:6379", std::chrono::milliseconds(10000));
+        SessionManager sessionService("tcp://127.0.0.1:6379", std::chrono::milliseconds(HALF_HOUR));
 
         DispatcherRequestHandlerFactory dispatcher(sync, sessionService); 
         UInt16 port = static_cast<UInt16>(config().getUInt("port", 8080));
