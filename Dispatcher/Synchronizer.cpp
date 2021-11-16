@@ -14,10 +14,10 @@
  */
 
 Synchronizer::Synchronizer(int N) :
-        handler("127.0.0.1", 5672),
-        connection(&handler, AMQP::Login("guest", "guest"), "/"),
-        channel(&connection),
-        reqSema(N), respSema(N)
+	handler("127.0.0.1", 5672),
+	connection(&handler, AMQP::Login("guest", "guest"), "/"),
+	channel(&connection),
+	reqSema(N), respSema(N)
 {
     this->N = N;
     lockArray = std::vector<pthread_mutex_t>(N);

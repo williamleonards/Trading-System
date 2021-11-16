@@ -17,34 +17,33 @@
 class Synchronizer
 {
 public:
-  Synchronizer(int N);
-  ~Synchronizer();
-  std::string query(std::string args);
-  void start();
+		Synchronizer(int N);
+		~Synchronizer();
+		std::string query(std::string args);
+		void start();
 
 private:
-  void initializeZero(pthread_mutex_t *lock);
-  int getAndIncr();
-  void sendRequest(int id, std::string request);
-  void spawnWorkerThread(int id, std::string args);
-  void startMQHandler();
+		void initializeZero(pthread_mutex_t *lock);
+		int getAndIncr();
+		void sendRequest(int id, std::string request);
+		void spawnWorkerThread(int id, std::string args);
+		void startMQHandler();
 
 private:
-  int N;
-  int threadId;
+		int N;
+		int threadId;
 
-  Semaphore reqSema;
-  Semaphore respSema;
+		Semaphore reqSema;
+		Semaphore respSema;
 
-  pthread_mutex_t threadIdLock;
-  std::vector<pthread_mutex_t> lockArray;
-  pthread_mutex_t coutLock;
+		pthread_mutex_t threadIdLock;
+		std::vector<pthread_mutex_t> lockArray;
+		pthread_mutex_t coutLock;
 
-  std::vector<std::string> responses;
+		std::vector<std::string> responses;
 
-  SimplePocoHandler handler;
-  AMQP::Connection connection;
-  AMQP::Channel channel;
-
+		SimplePocoHandler handler;
+		AMQP::Connection connection;
+		AMQP::Channel channel;
 };
 #endif //DISPATCHER_SYNCHRONIZER_H
