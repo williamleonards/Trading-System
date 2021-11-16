@@ -26,7 +26,7 @@
 
 std::string formResponse(std::string id, std::string resp)
 {
-  return id + "|" + resp + "|";
+    return id + "|" + resp + "|";
 }
 
 std::string processRegisterRequest(TradeEngine &ts, std::vector<std::string> args)
@@ -178,55 +178,55 @@ int main()
         // TODO: ADD EXCEPTION HANDLING FOR STOI PARSE EXCEPTIONS
         if (method == "register")
         {
-        response = processRegisterRequest(ts, tokens);
+            response = processRegisterRequest(ts, tokens);
         }
         else if (method == "login")
         {
-        response = processLoginRequest(ts, tokens);
+            response = processLoginRequest(ts, tokens);
         }
         else if (method == "delete-buy")
         {
-        response = processDeleteBuyRequest(ts, tokens);
+            response = processDeleteBuyRequest(ts, tokens);
         }
         else if (method == "delete-sell")
         {
-        response = processDeleteSellRequest(ts, tokens);
+            response = processDeleteSellRequest(ts, tokens);
         }
         else if (method == "buy")
         {
-        response = processBuyRequest(ts, tokens);
+            response = processBuyRequest(ts, tokens);
         }
         else if (method == "sell")
         {
-        response = processSellRequest(ts, tokens);
+            response = processSellRequest(ts, tokens);
         }
         else if (method == "buy-tree")
         {
-        response = processBuyVolumeRequest(ts, tokens);
+            response = processBuyVolumeRequest(ts, tokens);
         }
         else if (method == "sell-tree")
         {
-        response = processSellTreeRequest(ts, tokens);
+            response = processSellTreeRequest(ts, tokens);
         }
         else if (method == "pending-buy")
         {
-        response = processPendingBuyOrderRequest(ts, tokens);
+            response = processPendingBuyOrderRequest(ts, tokens);
         }
         else if (method == "pending-sell")
         {
-        response = processPendingSellOrderRequest(ts, tokens);
+            response = processPendingSellOrderRequest(ts, tokens);
         }
         else if (method == "buy-history")
         {
-        response = processBuyHistoryRequest(ts, tokens);
+            response = processBuyHistoryRequest(ts, tokens);
         }
         else if (method == "sell-history")
         {
-        response = processSellHistoryRequest(ts, tokens);
+            response = processSellHistoryRequest(ts, tokens);
         }
         else
         {
-        response = processUnknownRequest(ts, tokens);
+            response = processUnknownRequest(ts, tokens);
         }
 
         if (channel.ready())
