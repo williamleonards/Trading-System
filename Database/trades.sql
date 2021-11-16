@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS ts.trades
     price integer NOT NULL,
     buyer character varying(20) COLLATE pg_catalog."default" NOT NULL,
     seller character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    ticker character varying(5) COLLATE pg_catalog."default",
     CONSTRAINT pk_trades PRIMARY KEY (trade_id),
     CONSTRAINT fk_trades_login_buyer FOREIGN KEY (buyer)
         REFERENCES ts.login (username) MATCH SIMPLE

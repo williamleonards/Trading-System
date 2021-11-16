@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS ts.sell_orders
     username character varying(20) COLLATE pg_catalog."default" NOT NULL,
     amount integer NOT NULL,
     price integer NOT NULL,
-    valid_bit boolean NOT NULL,
+    ticker character varying(5) COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT pk_sell_orders PRIMARY KEY (order_id),
     CONSTRAINT fk_sell_orders_login FOREIGN KEY (username)
         REFERENCES ts.login (username) MATCH SIMPLE
