@@ -4,6 +4,7 @@
 #include <thread>
 #include <stdlib.h>
 #include "Synchronizer.h"
+#include "SessionManager.h"
 
 #include <sys/socket.h> // For socket functions
 #include <netinet/in.h> // For sockaddr_in
@@ -18,9 +19,15 @@
 #include "Poco/Net/ServerSocket.h"
 #include "Poco/Util/ServerApplication.h"
 
+#include <nlohmann/json.hpp>
+
 using namespace Poco;
 using namespace Poco::Net;
 using namespace Poco::Util;
+
+using json = nlohmann::json;
+
+int HALF_HOUR = 1800000;
 
 std::string extractParams(HTTPServerRequest& request, std::vector<std::string> headers)
 {
@@ -28,11 +35,33 @@ std::string extractParams(HTTPServerRequest& request, std::vector<std::string> h
     for (int i = 0; i < headers.size(); i++)
     {
         std::string header = headers[i];
-        std::string arg = request.get(header);
+        const std::string& arg = request.get(header);
         args += arg;
         args += "|";
     }
     return args;
+}
+
+bool checkSessionToken(HTTPServerRequest& request, SessionManager &sessionService)
+{
+    try
+    {
+        const std::string &username = request.get("username");
+        const std::string &token = request.get("Cookie");
+        return sessionService.check(username, token);
+    }
+    catch (std::exception &e)
+    {
+        return false;
+    }
+}
+
+// TODO: IMPLEMENT THIS
+bool loginSuccess(std::string result)
+{
+    // result.find("true") != std::string::npos
+    std::cout << "result is ... " << result << std::endl;
+    return true;
 }
 
 class HelloRequestHandler: public HTTPRequestHandler
@@ -66,7 +95,6 @@ class RegisterRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "password"});
@@ -94,27 +122,8 @@ public:
 class LoginRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
-    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
-    {
-        Application& app = Application::instance();
-        app.logger().information("Request from %s", request.clientAddress().toString());
-        std::cout << request.getURI() << std::endl;
-
-        std::string result = sync.query("login|william|");
-
-        response.setChunkedTransferEncoding(true);
-        response.setContentType("text/html");
-
-        response.send()
-                << "Hello from the TS Server, result is " << result  << "\n";
-    }
-public:
-    LoginRequestHandler(Synchronizer &sync_) : sync(sync_) {}
-};
-
-class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
-{
-    Synchronizer &sync;
+    SessionManager &sessionService;
+    
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
         Application& app = Application::instance();
@@ -122,7 +131,57 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
         std::cout << request.getURI() << std::endl;
 
         std::string args;
+        try
+        {
+            args = extractParams(request, std::vector<std::string>{"username", "password"});
+        }
+        catch (NotFoundException e)
+        {
+            response.send()
+                    << "Argument parse error with exception on field " << e.message() << "\n";
+            return;
+        }
 
+        std::string result = sync.query("login|" + args);
+        
+        if (loginSuccess(result))
+        {
+            std::string username = request.get("username");
+            HTTPCookie cookie;
+            sessionService.registerSession(username, cookie);
+            response.addCookie(cookie);
+        }
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "Login executed with " << result  << "\n";
+    }
+public:
+    LoginRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
+};
+
+class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
+{
+    Synchronizer &sync;
+    SessionManager &sessionService;
+
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+
+        std::string args;
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "orderId"});
@@ -143,20 +202,30 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
                 << result << "\n";
     }
 public:
-    DeleteBuyOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    DeleteBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class DeleteSellOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "orderId"});
@@ -177,20 +246,31 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
                 << result << "\n";
     }
 public:
-    DeleteSellOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    DeleteSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class BuyOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
@@ -210,20 +290,30 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
                 << "Place buy order successful, result is " << result  << "\n";
     }
 public:
-    BuyOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    BuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class SellOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username", "price", "amount"});
@@ -244,14 +334,25 @@ class SellOrderRequestHandler: public HTTPRequestHandler
                 << "Place sell order successful, result is " << result  << "\n";
     }
 public:
-    SellOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    SellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class ViewBuyTreeRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
@@ -265,14 +366,25 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
                 << "View buy tree successful, result is " << result  << "\n";
     }
 public:
-    ViewBuyTreeRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewBuyTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class ViewSellTreeRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
@@ -286,20 +398,30 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
                 << "View sell tree successful, result is " << result  << "\n";
     }
 public:
-    ViewSellTreeRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewSellTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -320,20 +442,30 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
                 << "View pending buy order successful, result is " << result  << "\n";
     }
 public:
-    ViewPendingBuyOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewPendingBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -354,20 +486,30 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
                 << "View pending buy order successful, result is " << result  << "\n";
     }
 public:
-    ViewPendingSellOrderRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewPendingSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -388,20 +530,30 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
                 << "View buy history successful, result is " << result  << "\n";
     }
 public:
-    ViewBuyHistoryRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewBuyHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class ViewSellHistoryRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
         std::string args;
-
         try
         {
             args = extractParams(request, std::vector<std::string>{"username"});
@@ -423,14 +575,25 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
                 << "View sell history successful, result is " << result  << "\n";
     }
 public:
-    ViewSellHistoryRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    ViewSellHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class UnknownRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
+
     void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
     {
+        if (!checkSessionToken(request, sessionService))
+        {
+            response.send()
+                    << "Session token or username not found" << "\n";
+            return;
+        }
         Application& app = Application::instance();
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
@@ -444,15 +607,20 @@ class UnknownRequestHandler: public HTTPRequestHandler
                 << "Unknown request, response from server: " << result  << "\n";
     }
 public:
-    UnknownRequestHandler(Synchronizer &sync_) : sync(sync_) {}
+    UnknownRequestHandler(Synchronizer &sync_, SessionManager &sessionService_)
+    : sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
 {
     Synchronizer &sync;
+    SessionManager &sessionService;
     HTTPRequestHandler* createRequestHandler(const HTTPServerRequest& request)
     {
         // router class
+        // MEMORY LEAK!!!!!
         std::string path = request.getURI();
         if (path == "/")
         {
@@ -464,54 +632,57 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
         }
         else if (path == "/login")
         {
-            return new LoginRequestHandler(sync);
+            return new LoginRequestHandler(sync, sessionService);
         }
         else if (path == "/delete-buy")
         {
-            return new DeleteBuyOrderRequestHandler(sync);
+            return new DeleteBuyOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/delete-sell")
         {
-            return new DeleteSellOrderRequestHandler(sync);
+            return new DeleteSellOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/buy")
         {
-            return new BuyOrderRequestHandler(sync);
+            return new BuyOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/sell")
         {
-            return new SellOrderRequestHandler(sync);
+            return new SellOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/buy-tree")
         {
-            return new ViewBuyTreeRequestHandler(sync);
+            return new ViewBuyTreeRequestHandler(sync, sessionService);
         }
         else if (path == "/sell-tree")
         {
-            return new ViewSellTreeRequestHandler(sync);
+            return new ViewSellTreeRequestHandler(sync, sessionService);
         }
         else if (path == "/pending-buy")
         {
-            return new ViewPendingBuyOrderRequestHandler(sync);
+            return new ViewPendingBuyOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/pending-sell")
         {
-            return new ViewPendingSellOrderRequestHandler(sync);
+            return new ViewPendingSellOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/buy-history")
         {
-            return new ViewBuyHistoryRequestHandler(sync);
+            return new ViewBuyHistoryRequestHandler(sync, sessionService);
         }
         else if (path == "/sell-history")
         {
-            return new ViewSellHistoryRequestHandler(sync);
+            return new ViewSellHistoryRequestHandler(sync, sessionService);
         }
         else {
-            return new UnknownRequestHandler(sync);
+            return new UnknownRequestHandler(sync, sessionService);
         }
     }
 public:
-    DispatcherRequestHandlerFactory(Synchronizer &sync_) : sync(sync_) {}
+    DispatcherRequestHandlerFactory(Synchronizer &sync_, SessionManager &sessionService_) :
+    sync(sync_),
+    sessionService(sessionService_)
+    {}
 };
 
 // ONLY THIS REMAINS ON MAIN
@@ -528,9 +699,13 @@ class WebServerApp: public ServerApplication
         Synchronizer sync(10);
         sync.start();
 
+        // SessionManager sessionService("tcp://127.0.0.1:6379", std::chrono::milliseconds(HALF_HOUR));
+        SessionManager sessionService("tcp://127.0.0.1:6379", std::chrono::milliseconds(10000));
+
+        DispatcherRequestHandlerFactory dispatcher(sync, sessionService); 
         UInt16 port = static_cast<UInt16>(config().getUInt("port", 8080));
 
-        HTTPServer srv(new DispatcherRequestHandlerFactory(sync), port);
+        HTTPServer srv(&dispatcher, port);
         srv.start();
         logger().information("HTTP Server started on port %hu.", port);
         waitForTerminationRequest();

@@ -16,10 +16,33 @@ string TradeEngine::createUser(string name, string password)
     json response;
     try
     {
-        W.exec_prepared("createUser", name, password);
+        W.exec_prepared("findUserPassword", name, password);
         W.commit();
         response = {
             {"createUserResponse", {}}
+        };
+    }
+    catch (const std::exception &e)
+    {
+        response = {
+            {"errorResponse", {
+                {"message", e.what()}
+            }}
+        };
+    }
+    return response.dump();
+}
+
+string TradeEngine::loginUser(string username, string password)
+{
+    pqxx::work W{C};
+    json response;
+    try
+    {
+        pqxx::result R{W.exec_prepared("getUserPassword", username, password)};
+        W.commit();
+        response = {
+            {"loginUserResponse", R.size() > 0}
         };
     }
     catch (const std::exception &e)
@@ -560,4 +583,7 @@ void TradeEngine::prepareStatements()
 
     string getSellTradesSQL = "SELECT * FROM ts.trades WHERE seller = $1";
     C.prepare("getSellTrades", getSellTradesSQL);
+
+    string getUserPasswordSQL = "SELECT * FROM ts.login WHERE username = $1 AND password = $2";
+    C.prepare("getUserPassword", getUserPasswordSQL);
 }

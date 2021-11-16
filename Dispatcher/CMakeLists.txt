@@ -18,6 +18,21 @@ find_package(Poco REQUIRED Net)
 find_package(Poco REQUIRED Util)
 #find_package(cpprestsdk REQUIRED)
 
+# <------------ add hiredis dependency --------------->
+find_path(HIREDIS_HEADER hiredis)
+include_directories(PUBLIC ${HIREDIS_HEADER})
+
+find_library(HIREDIS_LIB hiredis)
+link_libraries(${HIREDIS_LIB})
+
+# <------------ add redis-plus-plus dependency -------------->
+# NOTE: this should be *sw* NOT *redis++*
+find_path(REDIS_PLUS_PLUS_HEADER sw)
+include_directories(PUBLIC ${REDIS_PLUS_PLUS_HEADER})
+
+find_library(REDIS_PLUS_PLUS_LIB redis++)
+link_libraries(${REDIS_PLUS_PLUS_LIB})
+
 link_libraries(
         /usr/local/lib/libamqpcpp.a
         Poco::Net
@@ -30,4 +45,5 @@ link_libraries(
 #        boost_chrono
 )
 
-add_executable(Dispatcher main.cpp Synchronizer.cpp Sema.cpp SimplePocoHandler.cpp)
+add_executable(Dispatcher main.cpp Synchronizer.cpp Sema.cpp SimplePocoHandler.cpp
+        SessionManager.cpp)
