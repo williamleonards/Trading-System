@@ -4,6 +4,7 @@
 
 #include "TradeEngine.h"
 #include <pthread.h>
+#include <bcrypt.h>
 
 TradeEngine::TradeEngine(string conn) : C(conn)
 {
@@ -17,7 +18,7 @@ string TradeEngine::createUser(string name, string password)
     try
     {
         // try catch sufficient, no need to check result
-        W.exec_prepared("createUser", name, password);
+        W.exec_prepared("createUser", name, hashPassword(password));
         W.commit();
         response = {
             {"createUserResponse", {}}
@@ -40,7 +41,7 @@ string TradeEngine::loginUser(string username, string password)
     json response;
     try
     {
-        pqxx::result R{W.exec_prepared("getUserPassword", username, password)};
+        pqxx::result R{W.exec_prepared("getUserPassword", username, hashPassword(password))};
         W.commit();
         response = {
             {"loginUserResponse", R.size() > 0}
@@ -605,4 +606,9 @@ void TradeEngine::prepareStatements()
 
     string getSellTradesSQL = "SELECT * FROM ts.trades WHERE seller = $1";
     C.prepare("getSellTrades", getSellTradesSQL);
+}
+
+string TradeEngine::hashPassword(const string& password)
+{
+    return bcrypt::generateHash(password);
 }

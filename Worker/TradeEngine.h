@@ -74,6 +74,7 @@ public:
 
 private:
     void prepareStatements();
+    string hashPassword(const string& password);
     
 private:
     pqxx::connection C;
