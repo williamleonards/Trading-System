@@ -4,6 +4,7 @@
 
 #include "TradeEngine.h"
 #include <pthread.h>
+#include <bcrypt.h>
 
 TradeEngine::TradeEngine(string conn) : C(conn)
 {
@@ -17,7 +18,7 @@ string TradeEngine::createUser(string name, string password)
     try
     {
         // try catch sufficient, no need to check result
-        W.exec_prepared("createUser", name, password);
+        W.exec_prepared("createUser", name, hashPassword(password));
         W.commit();
         response = {
             {"createUserResponse", {}}
@@ -40,11 +41,21 @@ string TradeEngine::loginUser(string username, string password)
     json response;
     try
     {
-        pqxx::result R{W.exec_prepared("getUserPassword", username, password)};
+        pqxx::result R{W.exec_prepared("getUserPassword", username)};
         W.commit();
-        response = {
-            {"loginUserResponse", R.size() > 0}
-        };
+        if (R.size() == 0) 
+        {
+            response = {
+                {"loginUserResponse", false}
+            };
+        }
+        else
+        {
+            string hash = R[0][0].as<string>();
+            response = {
+                {"loginUserResponse", bcrypt::validatePassword(password,hash)}
+            };
+        }
     }
     catch (const std::exception &e)
     {
@@ -546,7 +557,7 @@ void TradeEngine::prepareStatements()
     string createUserSQL = "INSERT INTO ts.login (username, password) VALUES ($1,$2)";
     C.prepare("createUser", createUserSQL);
 
-    string getUserPasswordSQL = "SELECT * FROM ts.login WHERE username = $1 AND password = $2";
+    string getUserPasswordSQL = "SELECT password FROM ts.login WHERE username = $1";
     C.prepare("getUserPassword", getUserPasswordSQL);
 
     string deleteBuyOrderSQL = "DELETE FROM ts.buy_orders WHERE order_id = $1 AND username = $2 RETURNING *";
@@ -605,4 +616,9 @@ void TradeEngine::prepareStatements()
 
     string getSellTradesSQL = "SELECT * FROM ts.trades WHERE seller = $1";
     C.prepare("getSellTrades", getSellTradesSQL);
+}
+
+string TradeEngine::hashPassword(const string& password)
+{
+    return bcrypt::generateHash(password);
 }
