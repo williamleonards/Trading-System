@@ -209,6 +209,7 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticke
                 string seller = row[1].as<string>();
                 int amt = row[2].as<int>();
                 int sellPrice = row[3].as<int>();
+                long long datetime = std::time(nullptr);
                 if (currAmt >= amt)
                 {
                     json trade = {
@@ -216,7 +217,8 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticke
                         {"amount", amt},
                         {"buyer", buyer},
                         {"seller", seller},
-                        {"ticker", ticker}
+                        {"ticker", ticker},
+                        {"datetime", datetime}
                     };
                     trades.push_back(trade);
                     currAmt -= amt;
@@ -228,7 +230,8 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticke
                         {"amount", currAmt},
                         {"buyer", buyer},
                         {"seller", seller},
-                        {"ticker", ticker}
+                        {"ticker", ticker},
+                        {"datetime", datetime}
                     };
                     partiallyConvertedOrders.push_back(make_pair(order_id, amt - currAmt));
                     trades.push_back(trade);
@@ -266,13 +269,17 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticke
             int tradeAmount = trade["amount"].get<int>();
             string tradeBuyer = trade["buyer"].get<string>();
             string tradeSeller = trade["seller"].get<string>();
+            long timeNow = trade["datetime"].get<long>();
+            W.exec_prepared("insertTrades", tradeAmount, tradePrice, tradeBuyer, tradeSeller, ticker, timeNow);
 
-            W.exec_prepared("insertTrades", tradeAmount, tradePrice, tradeBuyer, tradeSeller, ticker);
+            string datetime = std::string(ctime(&timeNow));
+            trade["datetime"] = datetime.substr(0, datetime.length() - 1); // trim out \n
         }
         // if some amount left untraded, insert to buy_orders
         if (currAmt > 0)
         {
-            W.exec_prepared("insertBuyOrder", buyer, currAmt, price, ticker);
+            long long datetime = std::time(nullptr);
+            W.exec_prepared("insertBuyOrder", buyer, currAmt, price, ticker, datetime);
         }
         W.commit();
         response = {
@@ -311,6 +318,7 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt, string tic
                 string buyer = row[1].as<string>();
                 int amt = row[2].as<int>();
                 int buyPrice = row[3].as<int>();
+                long long datetime = std::time(nullptr);
                 if (currAmt >= amt)
                 {
                     json trade = {
@@ -318,7 +326,8 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt, string tic
                         {"amount", amt},
                         {"buyer", buyer},
                         {"seller", seller},
-                        {"ticker", ticker}
+                        {"ticker", ticker},
+                        {"datetime", datetime}
                     };
                     trades.push_back(trade);
                     currAmt -= amt;
@@ -330,7 +339,8 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt, string tic
                         {"amount", currAmt},
                         {"buyer", buyer},
                         {"seller", seller},
-                        {"ticker", ticker}
+                        {"ticker", ticker},
+                        {"datetime", datetime}
                     };
                     partiallyConvertedOrders.push_back(make_pair(order_id, amt - currAmt));
                     trades.push_back(trade);
@@ -368,13 +378,17 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt, string tic
             int tradeAmount = trade["amount"].get<int>();
             string tradeBuyer = trade["buyer"].get<string>();
             string tradeSeller = trade["seller"].get<string>();
+            long timeNow = trade["datetime"].get<long>();
+            W.exec_prepared("insertTrades", tradeAmount, tradePrice, tradeBuyer, tradeSeller, ticker, timeNow);
 
-            W.exec_prepared("insertTrades", tradeAmount, tradePrice, tradeBuyer, tradeSeller, ticker);
+            string datetime = std::string(ctime(&timeNow));
+            trade["datetime"] = datetime.substr(0, datetime.length() - 1); // trim out \n
         }
         // if some amount left untraded, insert to buy_orders
         if (currAmt > 0)
         {
-            W.exec_prepared("insertSellOrder", seller, currAmt, price, ticker);
+            long long datetime = std::time(nullptr);
+            W.exec_prepared("insertSellOrder", seller, currAmt, price, ticker, datetime);
         }
         W.commit();
         response = {
@@ -407,12 +421,15 @@ string TradeEngine::getPendingBuyOrders(string username)
             int amt = row[2].as<int>();
             int price = row[3].as<int>();
             string ticker = row[4].as<string>();
+            time_t datetimeLong = row[5].as<long long>();
+            string datetime = std::string(ctime(&datetimeLong));
             json entry = {
                 {"order_id", order_id},
                 {"price", price},
                 {"amount", amt},
                 {"price", price},
-                {"ticker", ticker}
+                {"ticker", ticker},
+                {"datetime", datetime.substr(0, datetime.length() - 1)}
             };
             entries.push_back(entry);
         }
@@ -446,12 +463,15 @@ string TradeEngine::getPendingSellOrders(string username)
             int amt = row[2].as<int>();
             int price = row[3].as<int>();
             string ticker = row[4].as<string>();
+            time_t datetimeLong = row[5].as<long long>();
+            string datetime = std::string(ctime(&datetimeLong));
             json entry = {
                 {"order_id", order_id},
                 {"price", price},
                 {"amount", amt},
                 {"price", price},
-                {"ticker", ticker}
+                {"ticker", ticker},
+                {"datetime", datetime.substr(0, datetime.length() - 1)}
             };
             entries.push_back(entry);
         }
@@ -486,13 +506,16 @@ string TradeEngine::getBuyTrades(string username)
             string buyer = row[3].as<string>();
             string seller = row[4].as<string>();
             string ticker = row[5].as<string>();
+            time_t datetimeLong = row[6].as<long long>();
+            string datetime = std::string(ctime(&datetimeLong));
             json entry = {
                 {"trade_id", trade_id},
                 {"price", price},
                 {"amount", amt},
                 {"buyer", buyer},
                 {"seller", seller},
-                {"ticker", ticker}
+                {"ticker", ticker},
+                {"datetime", datetime.substr(0, datetime.length() - 1)}
             };
             entries.push_back(entry);
         }
@@ -527,13 +550,16 @@ string TradeEngine::getSellTrades(string username)
             string buyer = row[3].as<string>();
             string seller = row[4].as<string>();
             string ticker = row[5].as<string>();
+            time_t datetimeLong = row[6].as<long long>();
+            string datetime = std::string(ctime(&datetimeLong));
             json entry = {
                 {"trade_id", trade_id},
                 {"price", price},
                 {"amount", amt},
                 {"buyer", buyer},
                 {"seller", seller},
-                {"ticker", ticker}
+                {"ticker", ticker},
+                {"datetime", datetime.substr(0, datetime.length() - 1)}
             };
             entries.push_back(entry);
         }
@@ -584,7 +610,7 @@ void TradeEngine::prepareStatements()
     string updatePartialSellOrderSQL = "UPDATE ts.sell_orders SET amount = $1 WHERE order_id = $2";
     C.prepare("updatePartialSellOrder", updatePartialSellOrderSQL);
 
-    string insertBuyOrderSQL = "INSERT INTO ts.buy_orders (username, amount, price, ticker)  VALUES ($1, $2, $3, $4)";
+    string insertBuyOrderSQL = "INSERT INTO ts.buy_orders (username, amount, price, ticker, datetime)  VALUES ($1, $2, $3, $4, $5)";
     C.prepare("insertBuyOrder", insertBuyOrderSQL);
 
     string getOrdersWithHighestPriceSQL = "SELECT * FROM ts.buy_orders WHERE ticker = $1 AND price = GREATEST((SELECT MAX(price) FROM ts.buy_orders WHERE ticker = $1), $2) ORDER BY order_id ASC";
@@ -599,10 +625,10 @@ void TradeEngine::prepareStatements()
     string updatePartialBuyOrderSQL = "UPDATE ts.buy_orders SET amount = $1 WHERE order_id = $2";
     C.prepare("updatePartialBuyOrder", updatePartialBuyOrderSQL);
 
-    string insertSellOrderSQL = "INSERT INTO ts.sell_orders (username, amount, price, ticker) VALUES ($1, $2, $3, $4)";
+    string insertSellOrderSQL = "INSERT INTO ts.sell_orders (username, amount, price, ticker, datetime) VALUES ($1, $2, $3, $4, $5)";
     C.prepare("insertSellOrder", insertSellOrderSQL);
 
-    string insertTradesSQL = "INSERT INTO ts.trades (amount, price, buyer, seller, ticker) VALUES ($1, $2, $3, $4, $5)";
+    string insertTradesSQL = "INSERT INTO ts.trades (amount, price, buyer, seller, ticker, datetime) VALUES ($1, $2, $3, $4, $5, $6)";
     C.prepare("insertTrades", insertTradesSQL);
 
     string getPendingBuyOrdersSQL = "SELECT * FROM ts.buy_orders WHERE username = $1";

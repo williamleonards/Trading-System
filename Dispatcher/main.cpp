@@ -47,6 +47,7 @@ bool checkSessionToken(HTTPServerRequest& request, SessionManager &sessionServic
     try
     {
         const std::string &username = request.get("username");
+        // TODO: THIS BREAKS WHEN THERE ARE MULTIPLE K-V PAIRS
         const std::string &token = request.get("Cookie");
         return sessionService.check(username, token);
     }

@@ -235,11 +235,11 @@ int main()
 
         if (channel.ready())
         {
-        channel.publish("ts-exchange", "generic-response", response);
+            channel.publish("ts-exchange", "generic-response", response);
         }
         else
         {
-        std::cout << "Can't publish, channel unavailable" << std::endl;
+            std::cout << "Can't publish, channel unavailable" << std::endl;
         }
     });
 

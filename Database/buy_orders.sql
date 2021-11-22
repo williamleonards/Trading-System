@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS ts.buy_orders
     amount integer NOT NULL,
     price integer NOT NULL,
     ticker character varying(5) COLLATE pg_catalog."default" NOT NULL,
+    datetime bigint NOT NULL,
     CONSTRAINT pk_buy_orders PRIMARY KEY (order_id),
     CONSTRAINT fk_buy_orders_login FOREIGN KEY (username)
         REFERENCES ts.login (username) MATCH SIMPLE
