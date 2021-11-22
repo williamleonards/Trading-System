@@ -17,6 +17,11 @@ bool SessionManager::registerSession(std::string &username, HTTPCookie &resultCo
     return res;
 }
 
+bool SessionManager::removeSession(std::string &username)
+{
+    return service.del(username);
+}
+
 bool SessionManager::check(const std::string &username, const std::string &token)
 {
     auto val = service.get(username);
