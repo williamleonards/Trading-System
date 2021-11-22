@@ -117,7 +117,6 @@ public:
     RegisterRequestHandler(Synchronizer &sync_) : sync(sync_) {}
 };
 
-// TODO: COMPLETE LOGIN SERVICE AND CALL USING THIS FUNCTION
 class LoginRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
@@ -136,6 +135,8 @@ class LoginRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
+            response.setChunkedTransferEncoding(true);
+            response.setContentType("text/html");
             response.send()
                     << "Argument parse error with exception on field " << e.message() << "\n";
             return;
@@ -145,7 +146,7 @@ class LoginRequestHandler: public HTTPRequestHandler
         
         if (loginSuccess(result))
         {
-            std::string username = request.get("username");
+            std::string username = request.get("username"); // guaranteed to succeed
             HTTPCookie cookie;
             sessionService.registerSession(username, cookie);
             response.addCookie(cookie);
@@ -154,11 +155,50 @@ class LoginRequestHandler: public HTTPRequestHandler
         response.setContentType("text/html");
 
         response.send()
-                << "Login executed with " << result  << "\n";
+                << "Login executed with result " << result  << "\n";
     }
 public:
     LoginRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
     sync(sync_),
+    sessionService(sessionService_)
+    {}
+};
+
+class LogoutRequestHandler: public HTTPRequestHandler
+{
+    SessionManager &sessionService;
+    
+    void handleRequest(HTTPServerRequest& request, HTTPServerResponse& response)
+    {
+        Application& app = Application::instance();
+        app.logger().information("Request from %s", request.clientAddress().toString());
+        std::cout << request.getURI() << std::endl;
+        
+        std::string username;
+        try
+        {
+            username = request.get("username");
+        }
+        catch (NotFoundException e)
+        {
+            response.setChunkedTransferEncoding(true);
+            response.setContentType("text/html");
+            response.send()
+                    << "Argument parse error with exception on field " << e.message() << "\n";
+            return;
+        }
+
+        std::string result = sessionService.removeSession(username) ? "true" : "false";
+        std::string resp = "{\"logoutUserResponse\": " + result + "}";
+
+        response.setChunkedTransferEncoding(true);
+        response.setContentType("text/html");
+
+        response.send()
+                << "Logout executed with result " << resp << "\n";
+    }
+public:
+    LogoutRequestHandler(SessionManager &sessionService_):
     sessionService(sessionService_)
     {}
 };
@@ -198,7 +238,7 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
         response.setContentType("text/html");
 
         response.send()
-                << result << "\n";
+                << "Delete buy executed with result " << result << "\n";
     }
 public:
     DeleteBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -242,7 +282,7 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
         response.setContentType("text/html");
 
         response.send()
-                << result << "\n";
+                << "Delete sell executed with result " << result << "\n";
     }
 public:
     DeleteSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -656,6 +696,10 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
         else if (path == "/login")
         {
             return new LoginRequestHandler(sync, sessionService);
+        }
+        else if (path == "/logout")
+        {
+            return new LogoutRequestHandler(sessionService);
         }
         else if (path == "/delete-buy")
         {

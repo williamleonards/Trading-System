@@ -16,6 +16,7 @@ class SessionManager
 public:
     SessionManager(std::string connection, std::chrono::milliseconds timeout);
     bool registerSession(std::string &username, HTTPCookie &cookie);
+    bool removeSession(std::string &username);
     bool check(const std::string &username, const std::string &token);
 
 private:
