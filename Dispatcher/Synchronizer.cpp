@@ -10,6 +10,7 @@
 #include <boost/algorithm/string/classification.hpp>
 
 /*
+ * TODO: REMOVE THIS SH*T, CONVERT TO PROPER JSON
  * Request string encoding: <request-id>|<method-name>|<args>...
  */
 
@@ -43,32 +44,29 @@ void Synchronizer::initializeZero(pthread_mutex_t *lock)
     pthread_mutex_lock(lock);
 }
 
-std::string Synchronizer::query(std::string args)
+json Synchronizer::query(json &args)
 {
     reqSema.wait();
     int id = getAndIncr();
-
-    std::string request = std::to_string(id) + "|" + args;
-    sendRequest(id, request);
+    
+    args["id"] = id;
+    sendRequest(id, args);
 
     pthread_mutex_lock(&lockArray[id]); // WILL BE RELEASED BY WORKER THREAD
 
     std::string ans = responses[id];
-
     reqSema.notify();
-
+    
     return ans;
 }
 
-void Synchronizer::sendRequest(int id, std::string request)
+void Synchronizer::sendRequest(int id, json &request)
 {
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
     std::cout << "Request is " << request << std::endl;
 
     if (channel.ready())
     {
-        channel.publish("ts-exchange", "generic-request", request);
+        channel.publish("ts-exchange", "generic-request", request.dump());
     } else {
         std::cout << "Can't publish, channel unavailable" << std::endl;
     }

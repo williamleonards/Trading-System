@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <stdlib.h>
+#include <memory>
 #include "Synchronizer.h"
 #include "SessionManager.h"
 
@@ -19,27 +20,22 @@
 #include "Poco/Net/ServerSocket.h"
 #include "Poco/Util/ServerApplication.h"
 
-#include <nlohmann/json.hpp>
-
 using namespace Poco;
 using namespace Poco::Net;
 using namespace Poco::Util;
 
 using json = nlohmann::json;
 
-int HALF_HOUR = 1800000;
+const int HALF_HOUR = 1800000;
 
-std::string extractParams(HTTPServerRequest& request, std::vector<std::string> headers)
+void extractParams(json &args, HTTPServerRequest& request, std::vector<std::string> headers)
 {
-    std::string args = "";
     for (int i = 0; i < headers.size(); i++)
     {
         std::string header = headers[i];
         const std::string& arg = request.get(header);
-        args += arg;
-        args += "|";
+        args[header] = arg;
     }
-    return args;
 }
 
 bool checkSessionToken(HTTPServerRequest& request, SessionManager &sessionService)
@@ -72,8 +68,6 @@ class HelloRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("hello|");
-
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
@@ -93,10 +87,11 @@ class RegisterRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "password"});
+            extractParams(args, request, std::vector<std::string>{"username", "password"});
         }
         catch (NotFoundException e)
         {
@@ -105,13 +100,14 @@ class RegisterRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("register|" + args);
+        args["method"] = "register";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Registration complete with ID " << result  << "\n";
+                << "Registration complete with ID " << result.dump()  << "\n";
     }
 public:
     RegisterRequestHandler(Synchronizer &sync_) : sync(sync_) {}
@@ -128,10 +124,11 @@ class LoginRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "password"});
+            extractParams(args, request, std::vector<std::string>{"username", "password"});
         }
         catch (NotFoundException e)
         {
@@ -142,7 +139,8 @@ class LoginRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("login|" + args);
+        args["method"] = "login";
+        json result = sync.query(args);
         
         if (loginSuccess(result))
         {
@@ -155,7 +153,7 @@ class LoginRequestHandler: public HTTPRequestHandler
         response.setContentType("text/html");
 
         response.send()
-                << "Login executed with result " << result  << "\n";
+                << "Login executed with result " << result.dump()  << "\n";
     }
 public:
     LoginRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -220,10 +218,11 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "orderId"});
+            extractParams(args, request, std::vector<std::string>{"username", "orderId"});
         }
         catch (NotFoundException e)
         {
@@ -232,13 +231,14 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("delete-buy|" + args);
+        args["method"] = "delete-buy";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Delete buy executed with result " << result << "\n";
+                << "Delete buy executed with result " << result.dump() << "\n";
     }
 public:
     DeleteBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -264,10 +264,11 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "orderId"});
+            extractParams(args, request, std::vector<std::string>{"username", "orderId"});
         }
         catch (NotFoundException e)
         {
@@ -276,13 +277,14 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("delete-sell|" + args);
+        args["method"] = "delete-sell";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Delete sell executed with result " << result << "\n";
+                << "Delete sell executed with result " << result.dump() << "\n";
     }
 public:
     DeleteSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -309,10 +311,11 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "price", "amount", "ticker"});
+            extractParams(args, request, std::vector<std::string>{"username", "price", "amount", "ticker"});
         }
         catch (NotFoundException e)
         {
@@ -321,12 +324,14 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("buy|" + args);
+        args["method"] = "buy";
+        json result = sync.query(args);
+
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Place buy order successful, result is " << result  << "\n";
+                << "Place buy order successful, result is " << result.dump()  << "\n";
     }
 public:
     BuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -352,10 +357,11 @@ class SellOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username", "price", "amount", "ticker"});
+            extractParams(args, request, std::vector<std::string>{"username", "price", "amount", "ticker"});
         }
         catch (NotFoundException e)
         {
@@ -364,13 +370,14 @@ class SellOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("sell|" + args);
+        args["method"] = "sell";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Place sell order successful, result is " << result  << "\n";
+                << "Place sell order successful, result is " << result.dump()  << "\n";
     }
 public:
     SellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -396,10 +403,11 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"ticker"});
+            extractParams(args, request, std::vector<std::string>{"ticker"});
         }
         catch (NotFoundException e)
         {
@@ -408,13 +416,14 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("buy-tree|" + args);
+        args["method"] = "buy-tree";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View buy tree successful, result is " << result  << "\n";
+                << "View buy tree successful, result is " << result.dump()  << "\n";
     }
 public:
     ViewBuyTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -440,10 +449,11 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"ticker"});
+            extractParams(args, request, std::vector<std::string>{"ticker"});
         }
         catch (NotFoundException e)
         {
@@ -452,13 +462,14 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("sell-tree|" + args);
+        args["method"] = "sell-tree";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View sell tree successful, result is " << result  << "\n";
+                << "View sell tree successful, result is " << result.dump()  << "\n";
     }
 public:
     ViewSellTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -484,10 +495,11 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username"});
+            extractParams(args, request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -496,13 +508,14 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("pending-buy|" + args);
+        args["method"] = "pending-buy";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View pending buy order successful, result is " << result  << "\n";
+                << "View pending buy order successful, result is " << result.dump()  << "\n";
     }
 public:
     ViewPendingBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -528,10 +541,11 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username"});
+            extractParams(args, request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -540,13 +554,14 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("pending-sell|" + args);
+        args["method"] = "pending-sell";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View pending buy order successful, result is " << result  << "\n";
+                << "View pending buy order successful, result is " << result.dump()  << "\n";
     }
 public:
     ViewPendingSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -572,10 +587,11 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
+
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username"});
+            extractParams(args, request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -584,13 +600,14 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
             return;
         }
 
-        std::string result = sync.query("buy-history|" + args);
+        args["method"] = "buy-history";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View buy history successful, result is " << result  << "\n";
+                << "View buy history successful, result is " << result.dump()  << "\n";
     }
 public:
     ViewBuyHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -616,10 +633,10 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string args;
+        json args;
         try
         {
-            args = extractParams(request, std::vector<std::string>{"username"});
+            extractParams(args, request, std::vector<std::string>{"username"});
         }
         catch (NotFoundException e)
         {
@@ -629,13 +646,15 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
         }
 
         // TODO: ADD EXCEPTION HANDLING FOR PARSE EXCEPTIONS THROWN BY WORKER
-        std::string result = sync.query("sell-history|" + args);
+
+        args["method"] = "sell-history";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "View sell history successful, result is " << result  << "\n";
+                << "View sell history successful, result is " << result.dump()  << "\n";
     }
 public:
     ViewSellHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -661,13 +680,15 @@ class UnknownRequestHandler: public HTTPRequestHandler
         app.logger().information("Request from %s", request.clientAddress().toString());
         std::cout << request.getURI() << std::endl;
 
-        std::string result = sync.query("unknown-request|");
+        json args;
+        args["method"] = "unknown-request";
+        json result = sync.query(args);
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
         response.send()
-                << "Unknown request, response from server: " << result  << "\n";
+                << "Unknown request, response from server: " << result.dump()  << "\n";
     }
 public:
     UnknownRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -683,66 +704,81 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
     HTTPRequestHandler* createRequestHandler(const HTTPServerRequest& request)
     {
         // router class
-        // MEMORY LEAK!!!!!
+        // MEMORY LEAK!!!!! USE SMART PTRS!!!!
         std::string path = request.getURI();
         if (path == "/")
         {
-            return new HelloRequestHandler(sync);
+            std::shared_ptr<HTTPRequestHandler> ptr(new HelloRequestHandler(sync));
+            return ptr.get();
         }
         else if (path == "/register")
         {
-            return new RegisterRequestHandler(sync);
+            std::shared_ptr<HTTPRequestHandler> ptr(new RegisterRequestHandler(sync));
+            return ptr.get();
         }
         else if (path == "/login")
         {
-            return new LoginRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new LoginRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/logout")
         {
-            return new LogoutRequestHandler(sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new LogoutRequestHandler(sessionService));
+            return ptr.get();
         }
         else if (path == "/delete-buy")
         {
-            return new DeleteBuyOrderRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new DeleteBuyOrderRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/delete-sell")
         {
-            return new DeleteSellOrderRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new DeleteSellOrderRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/buy")
         {
-            return new BuyOrderRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new BuyOrderRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/sell")
         {
-            return new SellOrderRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new SellOrderRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/buy-tree")
         {
-            return new ViewBuyTreeRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new ViewBuyTreeRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/sell-tree")
         {
-            return new ViewSellTreeRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new ViewSellTreeRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/pending-buy")
         {
-            return new ViewPendingBuyOrderRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new ViewPendingBuyOrderRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/pending-sell")
         {
-            return new ViewPendingSellOrderRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new ViewPendingSellOrderRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/buy-history")
         {
-            return new ViewBuyHistoryRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new ViewBuyHistoryRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else if (path == "/sell-history")
         {
-            return new ViewSellHistoryRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new ViewSellHistoryRequestHandler(sync, sessionService));
+            return ptr.get();
         }
         else {
-            return new UnknownRequestHandler(sync, sessionService);
+            std::shared_ptr<HTTPRequestHandler> ptr(new UnknownRequestHandler(sync, sessionService));
+            return ptr.get();
         }
     }
 public:
