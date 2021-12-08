@@ -172,6 +172,8 @@ int main()
                 << std::endl;
 
         std::string msg = message.body();
+        msg = msg.substr(0, msg.find_first_of('\n'));
+        
         std::vector<std::string> tokens;
         boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of("|"));
 

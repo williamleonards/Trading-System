@@ -10,7 +10,7 @@
 #include <boost/algorithm/string/classification.hpp>
 
 /*
- * TODO: REMOVE THIS SH*T, CONVERT TO PROPER JSON
+ * TODO: CONVERT TO PROPER JSON
  * Request string encoding: <request-id>|<method-name>|<args>...
  */
 
@@ -66,7 +66,7 @@ void Synchronizer::sendRequest(int id, json &request)
 
     if (channel.ready())
     {
-        channel.publish("ts-exchange", "generic-request", request.dump());
+        channel.publish("ts-exchange", "generic-request", request.dump() + '\n');
     } else {
         std::cout << "Can't publish, channel unavailable" << std::endl;
     }
