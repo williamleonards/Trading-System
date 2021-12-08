@@ -704,81 +704,67 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
     HTTPRequestHandler* createRequestHandler(const HTTPServerRequest& request)
     {
         // router class
-        // MEMORY LEAK!!!!! USE SMART PTRS!!!!
+        // SAFE FROM MEMORY LEAK AS THE CALLER WILL CLEANUP
+        // (SEE POCO EXAMPLES https://pocoproject.org/slides/200-Network.pdf)
         std::string path = request.getURI();
         if (path == "/")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new HelloRequestHandler(sync));
-            return ptr.get();
+            return new HelloRequestHandler(sync);
         }
         else if (path == "/register")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new RegisterRequestHandler(sync));
-            return ptr.get();
+            return new RegisterRequestHandler(sync);
         }
         else if (path == "/login")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new LoginRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new LoginRequestHandler(sync, sessionService);
         }
         else if (path == "/logout")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new LogoutRequestHandler(sessionService));
-            return ptr.get();
+            return new LogoutRequestHandler(sessionService);
         }
         else if (path == "/delete-buy")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new DeleteBuyOrderRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new DeleteBuyOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/delete-sell")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new DeleteSellOrderRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new DeleteSellOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/buy")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new BuyOrderRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new BuyOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/sell")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new SellOrderRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new SellOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/buy-tree")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new ViewBuyTreeRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new ViewBuyTreeRequestHandler(sync, sessionService);
         }
         else if (path == "/sell-tree")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new ViewSellTreeRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new ViewSellTreeRequestHandler(sync, sessionService);
         }
         else if (path == "/pending-buy")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new ViewPendingBuyOrderRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new ViewPendingBuyOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/pending-sell")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new ViewPendingSellOrderRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new ViewPendingSellOrderRequestHandler(sync, sessionService);
         }
         else if (path == "/buy-history")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new ViewBuyHistoryRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new ViewBuyHistoryRequestHandler(sync, sessionService);
         }
         else if (path == "/sell-history")
         {
-            std::shared_ptr<HTTPRequestHandler> ptr(new ViewSellHistoryRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new ViewSellHistoryRequestHandler(sync, sessionService);
         }
         else {
-            std::shared_ptr<HTTPRequestHandler> ptr(new UnknownRequestHandler(sync, sessionService));
-            return ptr.get();
+            return new UnknownRequestHandler(sync, sessionService);
         }
     }
 public:
