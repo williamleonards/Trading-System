@@ -14,18 +14,22 @@
 #include "SimplePocoHandler.h"
 #include "Sema.cpp"
 
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
 class Synchronizer
 {
 public:
 		Synchronizer(int N);
 		~Synchronizer();
-		std::string query(std::string args);
+		json query(json &args);
 		void start();
 
 private:
 		void initializeZero(pthread_mutex_t *lock);
 		int getAndIncr();
-		void sendRequest(int id, std::string request);
+		void sendRequest(int id, json &request);
 		void spawnWorkerThread(int id, std::string args);
 		void startMQHandler();
 

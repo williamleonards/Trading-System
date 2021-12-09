@@ -9,10 +9,6 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-/*
- * Request string encoding: <request-id>|<method-name>|<args>...
- */
-
 Synchronizer::Synchronizer(int N) :
 	handler("127.0.0.1", 5672),
 	connection(&handler, AMQP::Login("guest", "guest"), "/"),
@@ -43,32 +39,29 @@ void Synchronizer::initializeZero(pthread_mutex_t *lock)
     pthread_mutex_lock(lock);
 }
 
-std::string Synchronizer::query(std::string args)
+json Synchronizer::query(json &args)
 {
     reqSema.wait();
     int id = getAndIncr();
-
-    std::string request = std::to_string(id) + "|" + args;
-    sendRequest(id, request);
+    
+    args["id"] = id;
+    sendRequest(id, args);
 
     pthread_mutex_lock(&lockArray[id]); // WILL BE RELEASED BY WORKER THREAD
 
     std::string ans = responses[id];
-
     reqSema.notify();
-
-    return ans;
+    
+    return json::parse(ans);
 }
 
-void Synchronizer::sendRequest(int id, std::string request)
+void Synchronizer::sendRequest(int id, json &request)
 {
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
     std::cout << "Request is " << request << std::endl;
 
     if (channel.ready())
     {
-        channel.publish("ts-exchange", "generic-request", request);
+        channel.publish("ts-exchange", "generic-request", request.dump() + '\n');
     } else {
         std::cout << "Can't publish, channel unavailable" << std::endl;
     }
@@ -102,11 +95,12 @@ void Synchronizer::startMQHandler()
                 std::cout << "[x] Received " << message.body() << std::endl << std::endl;
 
                 std::string msg = message.body();
-                std::vector<std::string> tokens;
-                boost::algorithm::split(tokens, msg, boost::algorithm::is_any_of("|"));
+                msg = msg.substr(0, msg.find_first_of('\n'));
 
-                int id = std::stoi(tokens[0]);
-                std::string response = tokens[1];
+                json args = json::parse(msg);
+
+                int id = args["id"];
+                std::string response = args["response"].dump();
 
                 std::cout << "Request id is " << id << " and response is " << response << std::endl;
                 respSema.wait(); // WILL RELEASE UPON WORKER COMPLETION
@@ -145,7 +139,7 @@ void *workerJob(void *arg)
     std::vector<std::string> *responses = state->responses;
     std::vector<std::string> &ref = *responses;
 
-    ref[state->id] = state->args; // NOW, DOUBLING IS DONE IN THE BACKEND
+    ref[state->id] = state->args;
 
     // vacate the corresponding sema for requester AND RESPONSE SEMA
     pthread_mutex_unlock(state->arrayLock);
