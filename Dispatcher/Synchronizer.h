@@ -21,7 +21,7 @@ using json = nlohmann::json;
 class Synchronizer
 {
 public:
-		Synchronizer(int N);
+		Synchronizer(json config);
 		~Synchronizer();
 		json query(json &args);
 		void start();
@@ -49,5 +49,17 @@ private:
 		SimplePocoHandler handler;
 		AMQP::Connection connection;
 		AMQP::Channel channel;
+
+		// MQ Configs
+		std::string host;
+		int port;
+		std::string user;
+		std::string password;
+		std::string vhost;
+		std::string exchange;
+		std::string requestQueue;
+		std::string requestRouting;
+		std::string responseQueue;
+		std::string responseRouting;
 };
 #endif //DISPATCHER_SYNCHRONIZER_H

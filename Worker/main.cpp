@@ -13,9 +13,8 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <fstream>
 
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
 #include <nlohmann/json.hpp>
 
 #include "SimplePocoHandler.h"
@@ -156,20 +155,39 @@ json processUnknownRequest(TradeEngine &ts, json args)
 
 int main()
 {
-    TradeEngine ts = TradeEngine("user=postgres password=Password12345 dbname=Trading-System hostaddr=127.0.0.1 port=5434");
+    // READ CONFIG JSON
+    std::ifstream file("worker-config.json"); // PATH RELATIVE TO EXECUTABLE, NOT SOURCE CODE
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    json workerConfig = json::parse(buffer.str());
+    std::cout << "WORKER CONFIG " << workerConfig << std::endl;
 
-    SimplePocoHandler handler("127.0.0.1", 5672);
-    AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
+    TradeEngine ts = TradeEngine(workerConfig["dbConfig"]["credentials"].get<std::string>());
+
+    // Extract config json
+    std::string host(workerConfig["mqConfig"]["host"].get<std::string>());
+    int port(workerConfig["mqConfig"]["port"].get<int>());
+    std::string user(workerConfig["mqConfig"]["user"].get<std::string>());
+    std::string password(workerConfig["mqConfig"]["password"].get<std::string>());
+    std::string vhost(workerConfig["mqConfig"]["vhost"].get<std::string>());
+    std::string exchange(workerConfig["mqConfig"]["exchange"].get<std::string>());
+    std::string requestQueue(workerConfig["mqConfig"]["requestQueue"].get<std::string>());
+    std::string requestRouting(workerConfig["mqConfig"]["requestRouting"].get<std::string>());
+    std::string responseQueue(workerConfig["mqConfig"]["responseQueue"].get<std::string>());
+    std::string responseRouting(workerConfig["mqConfig"]["responseRouting"].get<std::string>());
+
+    SimplePocoHandler handler(host, port);
+    AMQP::Connection connection(&handler, AMQP::Login(user, password), vhost);
     AMQP::Channel channel(&connection);
 
     channel.onReady([&]() {
         std::cout << "Worker is ready!" << std::endl;
     });
 
-    channel.declareExchange("ts-exchange", AMQP::direct);
-    channel.declareQueue("ts-generic-response");
-    channel.bindQueue("ts-exchange", "ts-generic-response", "generic-response");
-    channel.consume("ts-generic-request", AMQP::noack).onReceived([&channel, &ts](const AMQP::Message &message, uint64_t deliveryTag, bool redelivered) {
+    channel.declareExchange(exchange, AMQP::direct);
+    channel.declareQueue(responseQueue);
+    channel.bindQueue(exchange, responseQueue, responseRouting);
+    channel.consume(requestQueue, AMQP::noack).onReceived([&channel, &ts, &exchange, &responseRouting](const AMQP::Message &message, uint64_t deliveryTag, bool redelivered) {
         std::cout << "[x] Received " << message.body() << std::endl
                 << std::endl;
 
@@ -238,7 +256,7 @@ int main()
 
         if (channel.ready())
         {
-            channel.publish("ts-exchange", "generic-response", response.dump() + "\n");
+            channel.publish(exchange, responseRouting, response.dump() + "\n");
         }
         else
         {

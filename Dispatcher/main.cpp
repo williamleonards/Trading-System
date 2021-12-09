@@ -4,6 +4,7 @@
 #include <thread>
 #include <stdlib.h>
 #include <memory>
+#include <fstream>
 #include "Synchronizer.h"
 #include "SessionManager.h"
 
@@ -25,8 +26,6 @@ using namespace Poco::Net;
 using namespace Poco::Util;
 
 using json = nlohmann::json;
-
-const int HALF_HOUR = 1800000;
 
 void extractParams(json &args, HTTPServerRequest& request, std::vector<std::string> headers)
 {
@@ -784,13 +783,19 @@ class WebServerApp: public ServerApplication
 
     int main(const std::vector<std::string>&)
     {
-        Synchronizer sync(10);
+        // READ CONFIG JSON
+        std::ifstream file("../dispatcher-config.json"); // PATH RELATIVE TO EXECUTABLE, NOT SOURCE CODE
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        json dispatcherConfig = json::parse(buffer.str());
+        
+        Synchronizer sync(dispatcherConfig["synchronizerConfig"]);
         sync.start();
 
-        SessionManager sessionService("tcp://127.0.0.1:6379", std::chrono::milliseconds(HALF_HOUR));
+        SessionManager sessionService(dispatcherConfig["sessionServiceConfig"]);
 
         DispatcherRequestHandlerFactory dispatcher(sync, sessionService); 
-        UInt16 port = static_cast<UInt16>(config().getUInt("port", 8080));
+        UInt16 port = static_cast<UInt16>(config().getUInt("port", dispatcherConfig["dispatcherServerConfig"]["port"].get<int>()));
 
         HTTPServer srv(&dispatcher, port);
         srv.start();

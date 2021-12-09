@@ -1,0 +1,24 @@
+{
+	"sessionServiceConfig": {
+		"redisConnection": "tcp://127.0.0.1:6379",
+		"timeout": 1800000
+	},
+	"synchronizerConfig": {
+		"numThreads": 10,
+		"mqConfig": {
+			"host": "127.0.0.1",
+			"port": 5672,
+			"user": "guest",
+			"password": "guest",
+			"vhost": "/",
+			"exchange": "ts-exchange",
+			"requestQueue": "ts-generic-request",
+			"requestRouting": "generic-request",
+			"responseQueue": "ts-generic-response",
+			"responseRouting": "generic-response"
+		}
+	},
+	"dispatcherServerConfig": {
+		"port": 8080
+	}
+}
