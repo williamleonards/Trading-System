@@ -7,14 +7,16 @@
 
 #include <sw/redis++/redis++.h>
 #include "Poco/Net/HTTPCookie.h"
+#include <nlohmann/json.hpp>
 
 using namespace sw::redis;
 using namespace Poco::Net;
+using json = nlohmann::json;
 
 class SessionManager
 {
 public:
-    SessionManager(std::string connection, std::chrono::milliseconds timeout);
+    SessionManager(json config);
     bool registerSession(std::string &username, HTTPCookie &cookie);
     bool removeSession(std::string &username);
     bool check(const std::string &username, const std::string &token);

@@ -2,8 +2,9 @@
 #include <string>
 #include <iostream>
 
-SessionManager::SessionManager(std::string connection, std::chrono::milliseconds timeout)
-    : service(connection), timeout(timeout)
+SessionManager::SessionManager(json config)
+    : service(config["redisConnection"].get<std::string>())
+    , timeout(std::chrono::milliseconds(config["timeout"].get<int>()))
 {
 }
 

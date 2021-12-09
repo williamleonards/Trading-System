@@ -9,13 +9,25 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-Synchronizer::Synchronizer(int N) :
-	handler("127.0.0.1", 5672),
-	connection(&handler, AMQP::Login("guest", "guest"), "/"),
+// PARAMETRISE THE CONSTRUCTOR BY ADDING A JSON CONFIG ARGUMENT
+Synchronizer::Synchronizer(json config):
+    N(config["numThreads"].get<int>()),
+    host(config["mqConfig"]["host"].get<std::string>()),
+    port(config["mqConfig"]["port"].get<int>()),
+    user(config["mqConfig"]["user"].get<std::string>()),
+    password(config["mqConfig"]["password"].get<std::string>()),
+    vhost(config["mqConfig"]["vhost"].get<std::string>()),
+    exchange(config["mqConfig"]["exchange"].get<std::string>()),
+    requestQueue(config["mqConfig"]["requestQueue"].get<std::string>()),
+    requestRouting(config["mqConfig"]["requestRouting"].get<std::string>()),
+    responseQueue(config["mqConfig"]["responseQueue"].get<std::string>()),
+    responseRouting(config["mqConfig"]["responseRouting"].get<std::string>()),
+	handler(config["mqConfig"]["host"].get<std::string>(), config["mqConfig"]["port"].get<int>()),
+	connection(&handler, AMQP::Login(config["mqConfig"]["user"].get<std::string>(), config["mqConfig"]["password"].get<std::string>()), config["mqConfig"]["vhost"].get<std::string>()),
 	channel(&connection),
-	reqSema(N), respSema(N)
+	reqSema(config["numThreads"].get<int>()),
+    respSema(config["numThreads"].get<int>())
 {
-    this->N = N;
     lockArray = std::vector<pthread_mutex_t>(N);
 
     for (int i = 0; i < N; i++)
@@ -61,7 +73,7 @@ void Synchronizer::sendRequest(int id, json &request)
 
     if (channel.ready())
     {
-        channel.publish("ts-exchange", "generic-request", request.dump() + '\n');
+        channel.publish(exchange, requestRouting, request.dump() + '\n');
     } else {
         std::cout << "Can't publish, channel unavailable" << std::endl;
     }
@@ -84,10 +96,11 @@ void Synchronizer::startMQHandler()
 
     });
 
-    channel.declareExchange("ts-exchange", AMQP::direct);
-    channel.declareQueue("ts-generic-request");
-    channel.bindQueue("ts-exchange", "ts-generic-request", "generic-request");
-    channel.consume("ts-generic-response", AMQP::noack).onReceived(
+    // PARAMETRISE
+    channel.declareExchange(exchange, AMQP::direct);
+    channel.declareQueue(requestQueue);
+    channel.bindQueue(exchange, requestQueue, requestRouting);
+    channel.consume(responseQueue, AMQP::noack).onReceived(
             [this](const AMQP::Message &message,
                    uint64_t deliveryTag,
                    bool redelivered)
