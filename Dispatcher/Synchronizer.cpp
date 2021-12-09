@@ -6,8 +6,6 @@
 #include <thread>
 #include <chrono>
 #include <tuple>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
 
 // PARAMETRISE THE CONSTRUCTOR BY ADDING A JSON CONFIG ARGUMENT
 Synchronizer::Synchronizer(json config):

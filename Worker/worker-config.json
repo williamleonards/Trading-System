@@ -1,0 +1,17 @@
+{
+	"mqConfig": {
+		"host": "127.0.0.1",
+		"port": 5672,
+		"user": "guest",
+		"password": "guest",
+		"vhost": "/",
+		"exchange": "ts-exchange",
+		"requestQueue": "ts-generic-request",
+		"requestRouting": "generic-request",
+		"responseQueue": "ts-generic-response",
+		"responseRouting": "generic-response"
+	},
+	"dbConfig": {
+		"credentials": "user=postgres password=Password12345 dbname=Trading-System hostaddr=127.0.0.1 port=5434"
+	}
+}

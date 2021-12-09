@@ -27,8 +27,6 @@ using namespace Poco::Util;
 
 using json = nlohmann::json;
 
-const int HALF_HOUR = 1800000;
-
 void extractParams(json &args, HTTPServerRequest& request, std::vector<std::string> headers)
 {
     for (int i = 0; i < headers.size(); i++)
@@ -785,7 +783,7 @@ class WebServerApp: public ServerApplication
 
     int main(const std::vector<std::string>&)
     {
-        // CONFIG JSON HERE
+        // READ CONFIG JSON
         std::ifstream file("../dispatcher-config.json"); // PATH RELATIVE TO EXECUTABLE, NOT SOURCE CODE
         std::stringstream buffer;
         buffer << file.rdbuf();
