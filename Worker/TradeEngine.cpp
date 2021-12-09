@@ -11,7 +11,7 @@ TradeEngine::TradeEngine(string conn) : C(conn)
     prepareStatements();
 }
 
-string TradeEngine::createUser(string name, string password)
+json TradeEngine::createUser(string name, string password)
 {
     pqxx::work W{C};
     json response;
@@ -32,10 +32,10 @@ string TradeEngine::createUser(string name, string password)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::loginUser(string username, string password)
+json TradeEngine::loginUser(string username, string password)
 {
     pqxx::work W{C};
     json response;
@@ -65,10 +65,10 @@ string TradeEngine::loginUser(string username, string password)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::deleteBuyOrder(string username, long long orderId)
+json TradeEngine::deleteBuyOrder(string username, long long orderId)
 {
     //lazy deletion (?)
     pqxx::work W{C};
@@ -89,10 +89,10 @@ string TradeEngine::deleteBuyOrder(string username, long long orderId)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::deleteSellOrder(string username, long long orderId)
+json TradeEngine::deleteSellOrder(string username, long long orderId)
 {
     //lazy deletion (?)
     pqxx::work W{C};
@@ -113,10 +113,10 @@ string TradeEngine::deleteSellOrder(string username, long long orderId)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::getBuyVolumes(string ticker)
+json TradeEngine::getBuyVolumes(string ticker)
 {
     pqxx::work W{C};
     json response;
@@ -149,10 +149,10 @@ string TradeEngine::getBuyVolumes(string ticker)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::getSellVolumes(string ticker)
+json TradeEngine::getSellVolumes(string ticker)
 {
     pqxx::work W{C};
     json response;
@@ -185,10 +185,10 @@ string TradeEngine::getSellVolumes(string ticker)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticker)
+json TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticker)
 {
     json response;
     try
@@ -294,10 +294,10 @@ string TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticke
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::placeSellOrder(string seller, int price, int amt, string ticker)
+json TradeEngine::placeSellOrder(string seller, int price, int amt, string ticker)
 {
     json response;
     try
@@ -403,10 +403,10 @@ string TradeEngine::placeSellOrder(string seller, int price, int amt, string tic
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::getPendingBuyOrders(string username)
+json TradeEngine::getPendingBuyOrders(string username)
 {
     pqxx::work W{C};
     json response;
@@ -445,10 +445,10 @@ string TradeEngine::getPendingBuyOrders(string username)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::getPendingSellOrders(string username)
+json TradeEngine::getPendingSellOrders(string username)
 {
     pqxx::work W{C};
     json response;
@@ -487,10 +487,10 @@ string TradeEngine::getPendingSellOrders(string username)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::getBuyTrades(string username)
+json TradeEngine::getBuyTrades(string username)
 {
     pqxx::work W{C};
     json response;
@@ -531,10 +531,10 @@ string TradeEngine::getBuyTrades(string username)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
-string TradeEngine::getSellTrades(string username)
+json TradeEngine::getSellTrades(string username)
 {
     pqxx::work W{C};
     json response;
@@ -575,7 +575,7 @@ string TradeEngine::getSellTrades(string username)
             }}
         };
     }
-    return response.dump();
+    return response;
 }
 
 void TradeEngine::prepareStatements()

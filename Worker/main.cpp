@@ -23,136 +23,135 @@
 
 using json = nlohmann::json;
 
-/*
- * Request string encoding: <request-id>|<method-name>|<args>...
- */
-
-std::string formResponse(std::string id, std::string resp)
+json formResponse(int id, json resp)
 {
-    return id + "|" + resp + "|";
+    json workerResponse;
+    workerResponse["id"] = id;
+    workerResponse["response"] = resp;
+    return workerResponse;
 }
 
-std::string processRegisterRequest(TradeEngine &ts, json args)
+json processRegisterRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string name = args["username"].get<string>();
     std::string psw = args["password"].get<string>();
-    std::string resp = ts.createUser(name, psw);
+    json resp = ts.createUser(name, psw);
     return formResponse(reqId, resp);
 }
 
-std::string processLoginRequest(TradeEngine &ts, json args)
+json processLoginRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string name = args["username"].get<string>();
     std::string psw = args["password"].get<string>();
-    std::string resp = ts.loginUser(name, psw);
+    json resp = ts.loginUser(name, psw);
     return formResponse(reqId, resp);
 }
 
-std::string processBuyRequest(TradeEngine &ts, json args)
+json processBuyRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
     int price = args["price"].get<int>();
     int amt = args["amount"].get<int>();
     std::string ticker = args["ticker"].get<string>();
 
-    std::string resp = ts.placeBuyOrder(username, price, amt, ticker);
+    json resp = ts.placeBuyOrder(username, price, amt, ticker);
     return formResponse(reqId, resp);
 }
 
-std::string processSellRequest(TradeEngine &ts, json args)
+json processSellRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
     int price = args["price"].get<int>();
     int amt = args["amount"].get<int>();
     std::string ticker = args["ticker"].get<string>();
 
-    std::string resp = ts.placeSellOrder(username, price, amt, ticker);
+    json resp = ts.placeSellOrder(username, price, amt, ticker);
     return formResponse(reqId, resp);
 }
 
-std::string processPendingBuyOrderRequest(TradeEngine &ts, json args)
+json processPendingBuyOrderRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     string username = args["username"].get<string>();
 
-    std::string resp = ts.getPendingBuyOrders(username);
+    json resp = ts.getPendingBuyOrders(username);
     return formResponse(reqId, resp);
 }
 
 std::string processPendingSellOrderRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     string username = args["username"].get<string>();
 
-    std::string resp = ts.getPendingSellOrders(username);
+    json resp = ts.getPendingSellOrders(username);
     return formResponse(reqId, resp);
 }
 
-std::string processDeleteBuyRequest(TradeEngine &ts, json args)
+json processDeleteBuyRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
     long long orderId = args["orderId"].get<long long>();
 
-    std::string resp = ts.deleteBuyOrder(username, orderId);
+    json resp = ts.deleteBuyOrder(username, orderId);
     return formResponse(reqId, resp);
 }
 
-std::string processDeleteSellRequest(TradeEngine &ts, json args)
+json processDeleteSellRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
     long long orderId = args["orderId"].get<long long>();
 
-    std::string resp = ts.deleteSellOrder(username, orderId);
+    json resp = ts.deleteSellOrder(username, orderId);
     return formResponse(reqId, resp);
 }
 
-std::string processBuyVolumeRequest(TradeEngine &ts, json args)
+json processBuyVolumeRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string ticker = args["ticker"].get<string>();
 
-    std::string resp = ts.getBuyVolumes(ticker);
+    json resp = ts.getBuyVolumes(ticker);
     return formResponse(reqId, resp);
 }
 
-std::string processSellTreeRequest(TradeEngine &ts, json args)
+json processSellTreeRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string ticker = args["ticker"].get<string>();
 
-    std::string resp = ts.getSellVolumes(ticker);
+    json resp = ts.getSellVolumes(ticker);
     return formResponse(reqId, resp);
 }
 
-std::string processBuyHistoryRequest(TradeEngine &ts, json args)
+json processBuyHistoryRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
 
-    std::string resp = ts.getBuyTrades(username);
+    json resp = ts.getBuyTrades(username);
     return formResponse(reqId, resp);
 }
 
-std::string processSellHistoryRequest(TradeEngine &ts, json args)
+json processSellHistoryRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
 
-    std::string resp = ts.getSellTrades(username);
+    json resp = ts.getSellTrades(username);
     return formResponse(reqId, resp);
 }
 
-std::string processUnknownRequest(TradeEngine &ts, json args)
+json processUnknownRequest(TradeEngine &ts, json args)
 {
-    std::string reqId = std::to_string(args["id"].get<int>());
+    int reqId = args["id"].get<int>();
 
-    return formResponse(reqId, "Unknown request");
+    return formResponse(reqId, {{"unknownResponse", {}}});
 }
 
 int main()
@@ -181,7 +180,7 @@ int main()
 
         std::string method = args["method"].get<string>();
 
-        std::string response;
+        json response;
 
         // TODO: ADD EXCEPTION HANDLING FOR STOI PARSE EXCEPTIONS
         if (method == "register")
@@ -239,7 +238,7 @@ int main()
 
         if (channel.ready())
         {
-            channel.publish("ts-exchange", "generic-response", response);
+            channel.publish("ts-exchange", "generic-response", response.dump() + "\n");
         }
         else
         {
