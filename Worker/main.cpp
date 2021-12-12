@@ -52,8 +52,8 @@ json processBuyRequest(TradeEngine &ts, json args)
 {
     int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
-    int price = args["price"].get<int>();
-    int amt = args["amount"].get<int>();
+    int price = std::stoi(args["price"].get<std::string>());
+    int amt = std::stoi(args["amount"].get<std::string>());
     std::string ticker = args["ticker"].get<string>();
 
     json resp = ts.placeBuyOrder(username, price, amt, ticker);
@@ -64,8 +64,8 @@ json processSellRequest(TradeEngine &ts, json args)
 {
     int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
-    int price = args["price"].get<int>();
-    int amt = args["amount"].get<int>();
+    int price = std::stoi(args["price"].get<std::string>());
+    int amt = std::stoi(args["amount"].get<std::string>());
     std::string ticker = args["ticker"].get<string>();
 
     json resp = ts.placeSellOrder(username, price, amt, ticker);
@@ -94,7 +94,7 @@ json processDeleteBuyRequest(TradeEngine &ts, json args)
 {
     int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
-    long long orderId = args["orderId"].get<long long>();
+    long long orderId = std::stoll(args["orderId"].get<std::string>());
 
     json resp = ts.deleteBuyOrder(username, orderId);
     return formResponse(reqId, resp);
@@ -104,7 +104,7 @@ json processDeleteSellRequest(TradeEngine &ts, json args)
 {
     int reqId = args["id"].get<int>();
     std::string username = args["username"].get<string>();
-    long long orderId = args["orderId"].get<long long>();
+    long long orderId = std::stoll(args["orderId"].get<std::string>());
 
     json resp = ts.deleteSellOrder(username, orderId);
     return formResponse(reqId, resp);
@@ -160,7 +160,6 @@ int main()
     std::stringstream buffer;
     buffer << file.rdbuf();
     json workerConfig = json::parse(buffer.str());
-    std::cout << "WORKER CONFIG " << workerConfig << std::endl;
 
     TradeEngine ts = TradeEngine(workerConfig["dbConfig"]["credentials"].get<std::string>());
 
@@ -200,58 +199,70 @@ int main()
 
         json response;
 
-        // TODO: ADD EXCEPTION HANDLING FOR STOI PARSE EXCEPTIONS
-        if (method == "register")
+        try
         {
-            response = processRegisterRequest(ts, args);
+            if (method == "register")
+            {
+                response = processRegisterRequest(ts, args);
+            }
+            else if (method == "login")
+            {
+                response = processLoginRequest(ts, args);
+            }
+            else if (method == "delete-buy")
+            {
+                response = processDeleteBuyRequest(ts, args);
+            }
+            else if (method == "delete-sell")
+            {
+                response = processDeleteSellRequest(ts, args);
+            }
+            else if (method == "buy")
+            {
+                response = processBuyRequest(ts, args);
+            }
+            else if (method == "sell")
+            {
+                response = processSellRequest(ts, args);
+            }
+            else if (method == "buy-tree")
+            {
+                response = processBuyVolumeRequest(ts, args);
+            }
+            else if (method == "sell-tree")
+            {
+                response = processSellTreeRequest(ts, args);
+            }
+            else if (method == "pending-buy")
+            {
+                response = processPendingBuyOrderRequest(ts, args);
+            }
+            else if (method == "pending-sell")
+            {
+                response = processPendingSellOrderRequest(ts, args);
+            }
+            else if (method == "buy-history")
+            {
+                response = processBuyHistoryRequest(ts, args);
+            }
+            else if (method == "sell-history")
+            {
+                response = processSellHistoryRequest(ts, args);
+            }
+            else
+            {
+                response = processUnknownRequest(ts, args);
+            }
         }
-        else if (method == "login")
+        catch (const std::exception &e)
         {
-            response = processLoginRequest(ts, args);
-        }
-        else if (method == "delete-buy")
-        {
-            response = processDeleteBuyRequest(ts, args);
-        }
-        else if (method == "delete-sell")
-        {
-            response = processDeleteSellRequest(ts, args);
-        }
-        else if (method == "buy")
-        {
-            response = processBuyRequest(ts, args);
-        }
-        else if (method == "sell")
-        {
-            response = processSellRequest(ts, args);
-        }
-        else if (method == "buy-tree")
-        {
-            response = processBuyVolumeRequest(ts, args);
-        }
-        else if (method == "sell-tree")
-        {
-            response = processSellTreeRequest(ts, args);
-        }
-        else if (method == "pending-buy")
-        {
-            response = processPendingBuyOrderRequest(ts, args);
-        }
-        else if (method == "pending-sell")
-        {
-            response = processPendingSellOrderRequest(ts, args);
-        }
-        else if (method == "buy-history")
-        {
-            response = processBuyHistoryRequest(ts, args);
-        }
-        else if (method == "sell-history")
-        {
-            response = processSellHistoryRequest(ts, args);
-        }
-        else
-        {
-            response = processUnknownRequest(ts, args);
+            int id = args["id"].get<int>();
+            response = {
+                {"response", {
+                    {"error", "Error parsing input arguments"}
+                }},
+                {"id", id}
+            };
         }
 
         if (channel.ready())
