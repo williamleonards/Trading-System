@@ -27,5 +27,6 @@ private:
 private:
     Redis service;
     std::chrono::milliseconds timeout;
+    int timeoutInSeconds;
 };
 #endif //DISPATCHER_SESSION_MANAGER_H
