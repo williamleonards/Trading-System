@@ -27,6 +27,7 @@ bool SessionManager::check(const std::string &username, const std::string &token
 {
     auto val = service.get(username);
     if (!val) return false;
+    // ALSO REFRESH TOKEN EXPIRATION
     return *val == token;
 }
 
