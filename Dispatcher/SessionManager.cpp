@@ -2,9 +2,10 @@
 #include <string>
 #include <iostream>
 
-SessionManager::SessionManager(json config)
-    : service(config["redisConnection"].get<std::string>())
-    , timeout(std::chrono::milliseconds(config["timeout"].get<int>()))
+SessionManager::SessionManager(json config):
+    service(config["redisConnection"].get<std::string>()),
+    timeout(std::chrono::milliseconds(config["timeout"].get<int>())),
+    timeoutInSeconds(config["timeout"].get<int>() / 1000)
 {
 }
 
@@ -27,6 +28,8 @@ bool SessionManager::check(const std::string &username, const std::string &token
 {
     auto val = service.get(username);
     if (!val) return false;
+    // ALSO REFRESH TOKEN EXPIRATION
+    service.expire(username, timeoutInSeconds);
     return *val == token;
 }
 

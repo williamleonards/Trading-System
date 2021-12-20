@@ -57,6 +57,25 @@ bool loginSuccess(json result)
     return result["loginUserResponse"].get<bool>();
 }
 
+void sendResponse(HTTPServerResponse& response, json &result)
+{
+    response.send() << result.dump() << "\n";
+}
+
+void sendSessionNotFoundResponse(HTTPServerResponse& response)
+{
+    json result;
+    result["error"] = "Session token or username not found";
+    sendResponse(response, result);
+}
+
+void sendMissingHeaderResponse(HTTPServerResponse& response, NotFoundException &e)
+{
+    json result;
+    result["error"] = "Argument " + e.message() + " not found";
+    sendResponse(response, result);
+}
+
 class HelloRequestHandler: public HTTPRequestHandler
 {
     Synchronizer &sync;
@@ -69,8 +88,10 @@ class HelloRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Hello from the TS Server!\n";
+        json result;
+        result["helloResponse"] = "Hello from the TS Server!";
+
+        sendResponse(response, result);
     }
 public:
     HelloRequestHandler(Synchronizer &sync_) : sync(sync_) {}
@@ -93,8 +114,7 @@ class RegisterRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception on field " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -104,8 +124,7 @@ class RegisterRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Registration complete with ID " << result.dump()  << "\n";
+        response.send() << result.dump()  << "\n";
     }
 public:
     RegisterRequestHandler(Synchronizer &sync_) : sync(sync_) {}
@@ -132,8 +151,7 @@ class LoginRequestHandler: public HTTPRequestHandler
         {
             response.setChunkedTransferEncoding(true);
             response.setContentType("text/html");
-            response.send()
-                    << "Argument parse error with exception on field " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -150,8 +168,7 @@ class LoginRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Login executed with result " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     LoginRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -179,19 +196,19 @@ class LogoutRequestHandler: public HTTPRequestHandler
         {
             response.setChunkedTransferEncoding(true);
             response.setContentType("text/html");
-            response.send()
-                    << "Argument parse error with exception on field " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
-        std::string result = sessionService.removeSession(username) ? "true" : "false";
-        std::string resp = "{\"logoutUserResponse\": " + result + "}";
+        bool status = sessionService.removeSession(username);
+
+        json result;
+        result["logoutUserResponse"] = status;
 
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Logout executed with result " << resp << "\n";
+        sendResponse(response, result);
     }
 public:
     LogoutRequestHandler(SessionManager &sessionService_):
@@ -208,8 +225,7 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -224,8 +240,7 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception on field " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -235,8 +250,7 @@ class DeleteBuyOrderRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Delete buy executed with result " << result.dump() << "\n";
+        sendResponse(response, result);
     }
 public:
     DeleteBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -254,8 +268,7 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -270,8 +283,7 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception on field " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -281,8 +293,7 @@ class DeleteSellOrderRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Delete sell executed with result " << result.dump() << "\n";
+        sendResponse(response, result);
     }
 public:
     DeleteSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -301,8 +312,7 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -317,8 +327,7 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -328,8 +337,7 @@ class BuyOrderRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Place buy order successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     BuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -347,8 +355,7 @@ class SellOrderRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -363,8 +370,7 @@ class SellOrderRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -374,8 +380,7 @@ class SellOrderRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Place sell order successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     SellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -393,8 +398,7 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -409,8 +413,7 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -420,8 +423,7 @@ class ViewBuyTreeRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "View buy tree successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     ViewBuyTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -439,8 +441,7 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -455,8 +456,7 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -466,8 +466,7 @@ class ViewSellTreeRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "View sell tree successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     ViewSellTreeRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -485,8 +484,8 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            std::cout << "session not found..." << std::endl;
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -501,8 +500,8 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            std::cout << "header not found..." << std::endl;
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -512,8 +511,7 @@ class ViewPendingBuyOrderRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "View pending buy order successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     ViewPendingBuyOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -531,8 +529,7 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -547,8 +544,7 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -558,8 +554,7 @@ class ViewPendingSellOrderRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "View pending buy order successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     ViewPendingSellOrderRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -577,8 +572,7 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -593,8 +587,7 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -604,8 +597,7 @@ class ViewBuyHistoryRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "View buy history successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     ViewBuyHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -623,8 +615,7 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -638,8 +629,7 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
         }
         catch (NotFoundException e)
         {
-            response.send()
-                    << "Argument parse error with exception " << e.message() << "\n";
+            sendMissingHeaderResponse(response, e);
             return;
         }
 
@@ -651,8 +641,7 @@ class ViewSellHistoryRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "View sell history successful, result is " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     ViewSellHistoryRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):
@@ -670,8 +659,7 @@ class UnknownRequestHandler: public HTTPRequestHandler
     {
         if (!checkSessionToken(request, sessionService))
         {
-            response.send()
-                    << "Session token or username not found" << "\n";
+            sendSessionNotFoundResponse(response);
             return;
         }
         Application& app = Application::instance();
@@ -685,8 +673,7 @@ class UnknownRequestHandler: public HTTPRequestHandler
         response.setChunkedTransferEncoding(true);
         response.setContentType("text/html");
 
-        response.send()
-                << "Unknown request, response from server: " << result.dump()  << "\n";
+        sendResponse(response, result);
     }
 public:
     UnknownRequestHandler(Synchronizer &sync_, SessionManager &sessionService_):

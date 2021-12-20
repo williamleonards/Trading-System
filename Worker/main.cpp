@@ -81,7 +81,7 @@ json processPendingBuyOrderRequest(TradeEngine &ts, json args)
     return formResponse(reqId, resp);
 }
 
-std::string processPendingSellOrderRequest(TradeEngine &ts, json args)
+json processPendingSellOrderRequest(TradeEngine &ts, json args)
 {
     int reqId = args["id"].get<int>();
     string username = args["username"].get<string>();
