@@ -6,6 +6,16 @@
 #include <pthread.h>
 #include <bcrypt.h>
 
+bool validateTicker(string ticker)
+{
+    if (ticker.length() > 5) return false;
+    for (int i = 0; i < ticker.length(); i++)
+    {
+        if (!std::isalnum(ticker[i])) return false;
+    }
+    return true;
+}
+
 TradeEngine::TradeEngine(string conn) : C(conn)
 {
     prepareStatements();
@@ -122,6 +132,10 @@ json TradeEngine::getBuyVolumes(string ticker)
     json response;
     try
     {
+        if (!validateTicker(ticker))
+        {
+            throw std::invalid_argument("invalid ticker format");
+        }
         pqxx::result R{W.exec_prepared("getBuyVolumes", ticker)};
         json entries;
         for (auto row : R)
@@ -158,6 +172,10 @@ json TradeEngine::getSellVolumes(string ticker)
     json response;
     try
     {
+        if (!validateTicker(ticker))
+        {
+            throw std::invalid_argument("invalid ticker format");
+        }
         pqxx::result R{W.exec_prepared("getSellVolumes", ticker)};
         json entries;
         for (auto row : R)
@@ -193,6 +211,16 @@ json TradeEngine::placeBuyOrder(string buyer, int price, int amt, string ticker)
     json response;
     try
     {
+        if (price <= 0 || amt <= 0)
+        {
+            throw std::invalid_argument("received negative value for price/amt");
+        }
+
+        if (!validateTicker(ticker))
+        {
+            throw std::invalid_argument("invalid ticker format");
+        }
+
         int currAmt = amt;
         vector<pair<long long, int>> partiallyConvertedOrders;
         json trades;
@@ -302,6 +330,16 @@ json TradeEngine::placeSellOrder(string seller, int price, int amt, string ticke
     json response;
     try
     {
+        if (price <= 0 || amt <= 0)
+        {
+            throw std::invalid_argument( "received negative value for price/amt" );
+        }
+
+        if (!validateTicker(ticker))
+        {
+            throw std::invalid_argument("invalid ticker format");
+        }
+
         int currAmt = amt;
         vector<pair<long long, int>> partiallyConvertedOrders;
         json trades;
