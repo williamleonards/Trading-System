@@ -199,6 +199,8 @@ int main()
 
         json response;
 
+        // ROUTER CLASS!!!
+        // CACHE OPERATIONS HERE
         try
         {
             if (method == "register")
