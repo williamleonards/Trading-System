@@ -4,7 +4,7 @@
   COMPILE USING:
   g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp -lamqpcpp -lpoconet -lpocofoundation
 
-  g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp TradeEngine.cpp -lpqxx -lpq -lamqpcpp -lpoconet -lpocofoundation -lredis++ -lhiredis -pthread -lbcryptcpp
+  g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp TradeEngine.cpp RedisCache.cpp -lpqxx -lpq -lamqpcpp -lpoconet -lpocofoundation -lredis++ -lhiredis -pthread -lbcryptcpp
   
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp Order.cpp Trade.cpp User.cpp TradeEngine.cpp -lamqpcpp -lpoconet -lpocofoundation
   
@@ -199,8 +199,12 @@ int main()
 
         json response;
 
-        // ROUTER CLASS!!!
-        // CACHE OPERATIONS HERE
+        /* ROUTER CLASS!!!
+           CACHE OPERATIONS HERE
+           For read operations, cache operations inside process method
+           For write operations, cache operations after response is sent
+           Inject channel & cache dependencies into process methods
+        */
         try
         {
             if (method == "register")
@@ -275,6 +279,10 @@ int main()
         {
             std::cout << "Can't publish, channel unavailable" << std::endl;
         }
+
+        // update cache
+
+
     });
 
     handler.loop();

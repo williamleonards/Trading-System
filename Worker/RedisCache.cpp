@@ -10,93 +10,31 @@ RedisCache::RedisCache(json config):
     service.command("config", "set", "maxmemory-policy", eviction);
 }
 
-bool RedisCache::check(const std::string &username, const std::string &method)
-{
-    std::string key = method + ":" + username;
-    auto val = redis.get(key);
-    if (val) return true;
-    return false;
-}
-
-bool RedisCache::readBuySellTree(const std::string &ticker, bool isBuy,
+bool RedisCache::get(const std::string &username, const std::string &method,
     json &response)
 {
-    return false;
-}
-
-bool readPendingBuySell(const std::string &username, bool isBuy,
-    json &response)
-{
-    std::string method = isBuy ? "pending_buy" : "pending_sell";
-    std::string key = method + ":" + username;
-
-    std::unordered_map<std::string, std::string> hash;
-    service.hgetall(key, std::inserter(hash, hash.end()));
-
-    json orders;
-    // std::unordered_map<std::string, std::string> response;
-
-    for (auto& it: hash) {
-        // Do stuff
-        
-        std::unordered_map<std::string, std::string> ord;
-        redis.hgetall(it.second, std::inserter(ord, ord.end()));
-
-        json order;
-        
-        if (!orderHashToJson(ord, order))
-        {
-            return false;
-        }
-
-        orders.push_back(order);
-    }
-
-    response = {
-        {"getPendingBuyOrdersResponse", orders}
-    };
-
-    return true;
-}
-
-bool RedisCache::newPendingBuySell(const std::string &username, bool isBuy,
-    json &entry)
-{
-
-}
-
-bool RedisCache::orderHashToJson(const std::unordered_map<std::string, std::string> &hmap, json &order)
-{
-    try
-    {
-        long long order_id = std::stoll(hmap["order_id"]);
-        std::string username = hmap["username"];
-        int amt = std::stoi(hmap["amount"]);
-        int price = std::stoi(hmap["price"]);
-        std::string ticker = hmap["ticker"];
-        time_t datetimeLong = std::stoll(hmap["datetime"]);
-        std::string datetime = std::string(ctime(&datetimeLong));
-        if (username.length() == 0 || ticker.length() == 0 || datetime.length() == 0)
-        {
-            return false;
-        }
-        json entry = {
-            {"order_id", order_id},
-            {"price", price},
-            {"amount", amt},
-            {"price", price},
-            {"ticker", ticker},
-            {"datetime", datetime.substr(0, datetime.length() - 1)}
-        };
+    auto val = service.get(key);
+    if (val) {
+        // Dereference val to get the returned value of std::string type.
+        response = json::parse(*val);
         return true;
     }
-    catch (const std::exception &e)
-    {
-        return false;
-    }
+    return false;
 }
 
-bool RedisCache::orderJsonToHash(const json &order, std::unordered_map<std::string, std::string> &hmap)
+bool RedisCache::put(const std::string &username, const std::string &method,
+    json &data)
 {
-    return false;
+    std::string val = data.dump();
+    return service.set(key, val);
+}
+
+bool RedisCache::del(const std::string &username, const std::string &method)
+{
+    return service.del(key);
+}
+
+bool RedisCache::setTTL(const std::string &key)
+{
+    return service.expire(key, timeout);
 }
