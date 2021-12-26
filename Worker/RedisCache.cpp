@@ -1,7 +1,8 @@
 #include "RedisCache.h"
 
 RedisCache::RedisCache(json config):
-    service(config["redisConnection"].get<std::string>())
+    service(config["redisConnection"].get<std::string>()),
+    timeout(config["timeout"].get<int>())
 {
     std::string memLimit = config["memoryLimit"].get<std::string>();
     service.command("config", "set", "maxmemory", memLimit);
