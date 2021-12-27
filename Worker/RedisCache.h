@@ -20,10 +20,12 @@ public:
     bool get(const std::string &key, json &response);
     bool put(const std::string &key, json &data);
     bool del(const std::string &key);
-    bool setTTL(const std::string &key, int timeout);
+    bool putTTL(const std::string &key, json &data);
+    bool setTTL(const std::string &key);
 private:
     Redis service;
-    int timeout;
+    std::chrono::milliseconds timeout;
+    int timeoutInSeconds;
 };
 #endif //WORKER_REDIS_CACHE_H
 

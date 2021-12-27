@@ -1,8 +1,10 @@
 #include "RedisCache.h"
+#include <iostream>
 
 RedisCache::RedisCache(json config):
     service(config["redisConnection"].get<std::string>()),
-    timeout(config["timeout"].get<int>())
+    timeout(std::chrono::milliseconds(config["timeout"].get<int>())),
+    timeoutInSeconds(config["timeout"].get<int>() / 1000)
 {
     std::string memLimit = config["memoryLimit"].get<std::string>();
     service.command("config", "set", "maxmemory", memLimit);
@@ -11,8 +13,7 @@ RedisCache::RedisCache(json config):
     service.command("config", "set", "maxmemory-policy", eviction);
 }
 
-bool RedisCache::get(const std::string &username, const std::string &method,
-    json &response)
+bool RedisCache::get(const std::string &key, json &response)
 {
     auto val = service.get(key);
     if (val) {
@@ -23,19 +24,24 @@ bool RedisCache::get(const std::string &username, const std::string &method,
     return false;
 }
 
-bool RedisCache::put(const std::string &username, const std::string &method,
-    json &data)
+bool RedisCache::put(const std::string &key, json &data)
 {
     std::string val = data.dump();
     return service.set(key, val);
 }
 
-bool RedisCache::del(const std::string &username, const std::string &method)
+bool RedisCache::putTTL(const std::string &key, json &data)
+{
+    std::string val = data.dump();
+    return service.set(key, val, timeout);
+}
+
+bool RedisCache::del(const std::string &key)
 {
     return service.del(key);
 }
 
 bool RedisCache::setTTL(const std::string &key)
 {
-    return service.expire(key, timeout);
+    return service.expire(key, timeoutInSeconds);
 }
