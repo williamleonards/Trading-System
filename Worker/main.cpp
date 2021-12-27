@@ -78,6 +78,16 @@ void processBuyRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Chan
     json response = ts.placeBuyOrder(username, price, amt, ticker);
     response = formResponse(reqId, response);
     sendResponse(response, channel, exchange, responseRouting);
+
+    json trades = response["response"]["placeBuyOrderResponse"];
+    if (trades.is_null()) return;
+    for (int i = 0; i < trades.size(); i++) {
+        std::string counterparty = trades[i]["seller"];
+        cache.del("pending_sell:" + counterparty);
+        cache.del("sell_history:" + counterparty);
+    }
+    cache.del("pending_buy:" + username);
+    cache.del("buy_history:" + username);
 }
 
 void processSellRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Channel &channel,
@@ -92,6 +102,16 @@ void processSellRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Cha
     json response = ts.placeSellOrder(username, price, amt, ticker);
     response = formResponse(reqId, response);
     sendResponse(response, channel, exchange, responseRouting);
+
+    json trades = response["response"]["placeSellOrderResponse"];
+    if (trades.is_null()) return;
+    for (int i = 0; i < trades.size(); i++) {
+        std::string counterparty = trades[i]["seller"];
+        cache.del("pending_buy:" + counterparty);
+        cache.del("buy_history:" + counterparty);
+    }
+    cache.del("pending_sell:" + username);
+    cache.del("sell_history:" + username);
 }
 
 void processPendingBuyOrderRequest(TradeEngine &ts, json args, RedisCache &cache,
@@ -152,6 +172,8 @@ void processDeleteBuyRequest(TradeEngine &ts, json args, RedisCache &cache,
     json response = ts.deleteBuyOrder(username, orderId);
     response = formResponse(reqId, response);
     sendResponse(response, channel, exchange, responseRouting);
+
+    cache.del("pending_buy:" + username);
 }
 
 void processDeleteSellRequest(TradeEngine &ts, json args, RedisCache &cache,
@@ -164,6 +186,8 @@ void processDeleteSellRequest(TradeEngine &ts, json args, RedisCache &cache,
     json response = ts.deleteSellOrder(username, orderId);
     response = formResponse(reqId, response);
     sendResponse(response, channel, exchange, responseRouting);
+
+    cache.del("pending_sell:" + username);
 }
 
 void processBuyTreeRequest(TradeEngine &ts, json args, RedisCache &cache,
@@ -177,7 +201,6 @@ void processBuyTreeRequest(TradeEngine &ts, json args, RedisCache &cache,
 
     if (cache.get(key, response)) 
     {
-        std::cout << "buy tree cache hit!!" << std::endl;
         response["id"] = reqId;
         sendResponse(response, channel, exchange, responseRouting);
         return;

@@ -422,7 +422,7 @@ json TradeEngine::placeSellOrder(string seller, int price, int amt, string ticke
             string datetime = std::string(ctime(&timeNow));
             trade["datetime"] = datetime.substr(0, datetime.length() - 1); // trim out \n
         }
-        // if some amount left untraded, insert to buy_orders
+        // if some amount left untraded, insert to sell_orders
         if (currAmt > 0)
         {
             long long datetime = std::time(nullptr);
@@ -430,7 +430,7 @@ json TradeEngine::placeSellOrder(string seller, int price, int amt, string ticke
         }
         W.commit();
         response = {
-            {"placeBuyOrderResponse", trades}
+            {"placeSellOrderResponse", trades}
         };
     }
     catch (const std::exception &e)
