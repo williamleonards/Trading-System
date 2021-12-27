@@ -13,5 +13,11 @@
 	},
 	"dbConfig": {
 		"credentials": "user=postgres password=Password12345 dbname=Trading-System hostaddr=127.0.0.1 port=5434"
+	},
+	"redisCacheConfig": {
+		"redisConnection": "tcp://127.0.0.1:6379",
+		"memoryLimit": "100mb",
+		"evictionPolicy": "allkeys-lru",
+		"timeout": 60000
 	}
 }

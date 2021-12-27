@@ -688,7 +688,7 @@ class DispatcherRequestHandlerFactory: public HTTPRequestHandlerFactory
     SessionManager &sessionService;
     HTTPRequestHandler* createRequestHandler(const HTTPServerRequest& request)
     {
-        // router class
+        // ROUTER CLASS!!!
         // SAFE FROM MEMORY LEAK AS THE CALLER WILL CLEANUP
         // (SEE POCO EXAMPLES https://pocoproject.org/slides/200-Network.pdf)
         std::string path = request.getURI();
