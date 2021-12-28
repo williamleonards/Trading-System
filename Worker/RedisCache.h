@@ -6,11 +6,9 @@
 #define WORKER_REDIS_CACHE_H
 
 #include <sw/redis++/redis++.h>
-#include "Poco/Net/HTTPCookie.h"
 #include <nlohmann/json.hpp>
 
 using namespace sw::redis;
-using namespace Poco::Net;
 using json = nlohmann::json;
 
 class RedisCache

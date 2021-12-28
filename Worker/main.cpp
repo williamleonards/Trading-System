@@ -4,7 +4,7 @@
   COMPILE USING:
   g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp -lamqpcpp -lpoconet -lpocofoundation
 
-  g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp TradeEngine.cpp RedisCache.cpp -lpqxx -lpq -lamqpcpp -lpoconet -lpocofoundation -lredis++ -lhiredis -pthread -lbcryptcpp
+  g++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp TradeEngine.cpp RedisCache.cpp RequestProcessor.cpp utils.cpp -lpqxx -lpq -lamqpcpp -lpoconet -lpocofoundation -lredis++ -lhiredis -pthread -lbcryptcpp
   
   /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ -Werror -std=c++17 main.cpp SimplePocoHandler.cpp Order.cpp Trade.cpp User.cpp TradeEngine.cpp -lamqpcpp -lpoconet -lpocofoundation
   
@@ -20,281 +20,260 @@
 #include "SimplePocoHandler.h"
 #include "TradeEngine.h"
 #include "RedisCache.h"
+#include "RequestProcessor.h"
+// #include "utils.cpp"
 
-using json = nlohmann::json;
+// void processRegisterRequest(TradeEngine &ts, json &args, RedisCache &cache, AMQP::Channel &channel,
+//     const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string name = args["username"].get<string>();
+//     std::string psw = args["password"].get<string>();
+//     json response = ts.createUser(name, psw);
+//     response = formResponse(reqId, response);
+//     sendResponse(response, channel, exchange, responseRouting);
+// }
 
-json formResponse(int id, json resp)
-{
-    json workerResponse;
-    workerResponse["id"] = id;
-    workerResponse["response"] = resp;
-    return workerResponse;
-}
+// void processLoginRequest(TradeEngine &ts, json &args, RedisCache &cache, AMQP::Channel &channel,
+//     const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string name = args["username"].get<string>();
+//     std::string psw = args["password"].get<string>();
+//     json response = ts.loginUser(name, psw);
+//     response = formResponse(reqId, response);
+//     sendResponse(response, channel, exchange, responseRouting);
+// }
 
-void sendResponse(const json &response, AMQP::Channel &channel,
-    const std::string &exchange, const std::string &responseRouting)
-{
-    if (channel.ready())
-    {
-        channel.publish(exchange, responseRouting, response.dump() + "\n");
-    }
-    else
-    {
-        std::cout << "Can't publish, channel unavailable" << std::endl;
-    }
-}
+// void processBuyRequest(TradeEngine &ts, json &args, RedisCache &cache, AMQP::Channel &channel,
+//     const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string username = args["username"].get<string>();
+//     int price = std::stoi(args["price"].get<std::string>());
+//     int amt = std::stoi(args["amount"].get<std::string>());
+//     std::string ticker = args["ticker"].get<string>();
 
-void processRegisterRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Channel &channel,
-    const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string name = args["username"].get<string>();
-    std::string psw = args["password"].get<string>();
-    json response = ts.createUser(name, psw);
-    response = formResponse(reqId, response);
-    sendResponse(response, channel, exchange, responseRouting);
-}
+//     json response = ts.placeBuyOrder(username, price, amt, ticker);
+//     response = formResponse(reqId, response);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-void processLoginRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Channel &channel,
-    const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string name = args["username"].get<string>();
-    std::string psw = args["password"].get<string>();
-    json response = ts.loginUser(name, psw);
-    response = formResponse(reqId, response);
-    sendResponse(response, channel, exchange, responseRouting);
-}
+//     json trades = response["response"]["placeBuyOrderResponse"];
+//     if (trades.is_null()) return;
+//     for (int i = 0; i < trades.size(); i++) {
+//         std::string counterparty = trades[i]["seller"];
+//         cache.del("pending_sell:" + counterparty);
+//         cache.del("sell_history:" + counterparty);
+//     }
+//     cache.del("pending_buy:" + username);
+//     cache.del("buy_history:" + username);
+// }
 
-void processBuyRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Channel &channel,
-    const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string username = args["username"].get<string>();
-    int price = std::stoi(args["price"].get<std::string>());
-    int amt = std::stoi(args["amount"].get<std::string>());
-    std::string ticker = args["ticker"].get<string>();
+// void processSellRequest(TradeEngine &ts, json &args, RedisCache &cache, AMQP::Channel &channel,
+//     const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string username = args["username"].get<string>();
+//     int price = std::stoi(args["price"].get<std::string>());
+//     int amt = std::stoi(args["amount"].get<std::string>());
+//     std::string ticker = args["ticker"].get<string>();
 
-    json response = ts.placeBuyOrder(username, price, amt, ticker);
-    response = formResponse(reqId, response);
-    sendResponse(response, channel, exchange, responseRouting);
+//     json response = ts.placeSellOrder(username, price, amt, ticker);
+//     response = formResponse(reqId, response);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    json trades = response["response"]["placeBuyOrderResponse"];
-    if (trades.is_null()) return;
-    for (int i = 0; i < trades.size(); i++) {
-        std::string counterparty = trades[i]["seller"];
-        cache.del("pending_sell:" + counterparty);
-        cache.del("sell_history:" + counterparty);
-    }
-    cache.del("pending_buy:" + username);
-    cache.del("buy_history:" + username);
-}
+//     json trades = response["response"]["placeSellOrderResponse"];
+//     if (trades.is_null()) return;
+//     for (int i = 0; i < trades.size(); i++) {
+//         std::string counterparty = trades[i]["seller"];
+//         cache.del("pending_buy:" + counterparty);
+//         cache.del("buy_history:" + counterparty);
+//     }
+//     cache.del("pending_sell:" + username);
+//     cache.del("sell_history:" + username);
+// }
 
-void processSellRequest(TradeEngine &ts, json args, RedisCache &cache, AMQP::Channel &channel,
-    const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string username = args["username"].get<string>();
-    int price = std::stoi(args["price"].get<std::string>());
-    int amt = std::stoi(args["amount"].get<std::string>());
-    std::string ticker = args["ticker"].get<string>();
+// void processPendingBuyOrderRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     string username = args["username"].get<string>();
 
-    json response = ts.placeSellOrder(username, price, amt, ticker);
-    response = formResponse(reqId, response);
-    sendResponse(response, channel, exchange, responseRouting);
+//     json response;
+//     std::string key = "pending_buy:" + username;
 
-    json trades = response["response"]["placeSellOrderResponse"];
-    if (trades.is_null()) return;
-    for (int i = 0; i < trades.size(); i++) {
-        std::string counterparty = trades[i]["seller"];
-        cache.del("pending_buy:" + counterparty);
-        cache.del("buy_history:" + counterparty);
-    }
-    cache.del("pending_sell:" + username);
-    cache.del("sell_history:" + username);
-}
+//     if (cache.get(key, response)) 
+//     {
+//         response["id"] = reqId;
+//         sendResponse(response, channel, exchange, responseRouting);
+//         return;
+//     }
 
-void processPendingBuyOrderRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    string username = args["username"].get<string>();
+//     response = ts.getPendingBuyOrders(username);
+//     response = formResponse(reqId, response);
 
-    json response;
-    std::string key = "pending_buy:" + username;
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    if (cache.get(key, response)) 
-    {
-        response["id"] = reqId;
-        sendResponse(response, channel, exchange, responseRouting);
-        return;
-    }
+//     cache.put(key, response);
+// }
 
-    response = ts.getPendingBuyOrders(username);
-    response = formResponse(reqId, response);
+// void processPendingSellOrderRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     string username = args["username"].get<string>();
 
-    sendResponse(response, channel, exchange, responseRouting);
+//     json response;
+//     std::string key = "pending_sell:" + username;
 
-    cache.put(key, response);
-}
+//     if (cache.get(key, response)) 
+//     {
+//         response["id"] = reqId;
+//         sendResponse(response, channel, exchange, responseRouting);
+//         return;
+//     }
 
-void processPendingSellOrderRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    string username = args["username"].get<string>();
+//     response = ts.getPendingSellOrders(username);
+//     response = formResponse(reqId, response);
 
-    json response;
-    std::string key = "pending_sell:" + username;
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    if (cache.get(key, response)) 
-    {
-        response["id"] = reqId;
-        sendResponse(response, channel, exchange, responseRouting);
-        return;
-    }
+//     cache.put(key, response);
+// }
 
-    response = ts.getPendingSellOrders(username);
-    response = formResponse(reqId, response);
+// void processDeleteBuyRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string username = args["username"].get<string>();
+//     long long orderId = std::stoll(args["orderId"].get<std::string>());
 
-    sendResponse(response, channel, exchange, responseRouting);
+//     json response = ts.deleteBuyOrder(username, orderId);
+//     response = formResponse(reqId, response);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    cache.put(key, response);
-}
+//     cache.del("pending_buy:" + username);
+// }
 
-void processDeleteBuyRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string username = args["username"].get<string>();
-    long long orderId = std::stoll(args["orderId"].get<std::string>());
+// void processDeleteSellRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string username = args["username"].get<string>();
+//     long long orderId = std::stoll(args["orderId"].get<std::string>());
 
-    json response = ts.deleteBuyOrder(username, orderId);
-    response = formResponse(reqId, response);
-    sendResponse(response, channel, exchange, responseRouting);
+//     json response = ts.deleteSellOrder(username, orderId);
+//     response = formResponse(reqId, response);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    cache.del("pending_buy:" + username);
-}
+//     cache.del("pending_sell:" + username);
+// }
 
-void processDeleteSellRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string username = args["username"].get<string>();
-    long long orderId = std::stoll(args["orderId"].get<std::string>());
-
-    json response = ts.deleteSellOrder(username, orderId);
-    response = formResponse(reqId, response);
-    sendResponse(response, channel, exchange, responseRouting);
-
-    cache.del("pending_sell:" + username);
-}
-
-void processBuyTreeRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string ticker = args["ticker"].get<string>();
+// void processBuyTreeRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string ticker = args["ticker"].get<string>();
     
-    json response;
-    std::string key = "buy_tree:" + ticker;
+//     json response;
+//     std::string key = "buy_tree:" + ticker;
 
-    if (cache.get(key, response)) 
-    {
-        response["id"] = reqId;
-        sendResponse(response, channel, exchange, responseRouting);
-        return;
-    }
+//     if (cache.get(key, response)) 
+//     {
+//         response["id"] = reqId;
+//         sendResponse(response, channel, exchange, responseRouting);
+//         return;
+//     }
 
-    response = ts.getBuyVolumes(ticker);
-    response = formResponse(reqId, response);
+//     response = ts.getBuyVolumes(ticker);
+//     response = formResponse(reqId, response);
 
-    sendResponse(response, channel, exchange, responseRouting);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    cache.putTTL(key, response);
-}
+//     cache.putTTL(key, response);
+// }
 
-void processSellTreeRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string ticker = args["ticker"].get<string>();
+// void processSellTreeRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string ticker = args["ticker"].get<string>();
 
-    json response;
-    std::string key = "sell_tree:" + ticker;
+//     json response;
+//     std::string key = "sell_tree:" + ticker;
 
-    if (cache.get(key, response)) 
-    {
-        response["id"] = reqId;
-        sendResponse(response, channel, exchange, responseRouting);
-        return;
-    }
+//     if (cache.get(key, response)) 
+//     {
+//         response["id"] = reqId;
+//         sendResponse(response, channel, exchange, responseRouting);
+//         return;
+//     }
 
-    response = ts.getSellVolumes(ticker);
-    response = formResponse(reqId, response);
+//     response = ts.getSellVolumes(ticker);
+//     response = formResponse(reqId, response);
 
-    sendResponse(response, channel, exchange, responseRouting);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    cache.putTTL(key, response);
-}
+//     cache.putTTL(key, response);
+// }
 
-void processBuyHistoryRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string username = args["username"].get<string>();
+// void processBuyHistoryRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string username = args["username"].get<string>();
 
-    json response;
-    std::string key = "buy_history:" + username;
+//     json response;
+//     std::string key = "buy_history:" + username;
 
-    if (cache.get(key, response)) 
-    {
-        response["id"] = reqId;
-        sendResponse(response, channel, exchange, responseRouting);
-        return;
-    }
+//     if (cache.get(key, response)) 
+//     {
+//         response["id"] = reqId;
+//         sendResponse(response, channel, exchange, responseRouting);
+//         return;
+//     }
 
-    response = ts.getBuyTrades(username);
-    response = formResponse(reqId, response);
+//     response = ts.getBuyTrades(username);
+//     response = formResponse(reqId, response);
 
-    sendResponse(response, channel, exchange, responseRouting);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    cache.put(key, response);
-}
+//     cache.put(key, response);
+// }
 
-void processSellHistoryRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
-    std::string username = args["username"].get<string>();
+// void processSellHistoryRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
+//     std::string username = args["username"].get<string>();
 
-    json response;
-    std::string key = "sell_history:" + username;
+//     json response;
+//     std::string key = "sell_history:" + username;
 
-    if (cache.get(key, response)) 
-    {
-        response["id"] = reqId;
-        sendResponse(response, channel, exchange, responseRouting);
-        return;
-    }
+//     if (cache.get(key, response)) 
+//     {
+//         response["id"] = reqId;
+//         sendResponse(response, channel, exchange, responseRouting);
+//         return;
+//     }
 
-    response = ts.getSellTrades(username);
-    response = formResponse(reqId, response);
+//     response = ts.getSellTrades(username);
+//     response = formResponse(reqId, response);
 
-    sendResponse(response, channel, exchange, responseRouting);
+//     sendResponse(response, channel, exchange, responseRouting);
 
-    cache.put(key, response);
-}
+//     cache.put(key, response);
+// }
 
-void processUnknownRequest(TradeEngine &ts, json args, RedisCache &cache,
-    AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
-{
-    int reqId = args["id"].get<int>();
+// void processUnknownRequest(TradeEngine &ts, json &args, RedisCache &cache,
+//     AMQP::Channel &channel, const std::string &exchange, const std::string &responseRouting)
+// {
+//     int reqId = args["id"].get<int>();
 
-    json response = formResponse(reqId, {{"unknownResponse", {}}});
+//     json response = formResponse(reqId, {{"unknownResponse", {}}});
 
-    sendResponse(response, channel, exchange, responseRouting);
-}
+//     sendResponse(response, channel, exchange, responseRouting);
+// }
 
 int main()
 {
@@ -304,7 +283,7 @@ int main()
     buffer << file.rdbuf();
     json workerConfig = json::parse(buffer.str());
 
-    TradeEngine ts = TradeEngine(workerConfig["dbConfig"]["credentials"].get<std::string>());
+    TradeEngine ts(workerConfig["dbConfig"]["credentials"].get<std::string>());
 
     // Extract config json
     json mqConfig = workerConfig["mqConfig"];
@@ -319,7 +298,7 @@ int main()
     std::string responseQueue(mqConfig["responseQueue"].get<std::string>());
     std::string responseRouting(mqConfig["responseRouting"].get<std::string>());
 
-    RedisCache cache = RedisCache(workerConfig["redisCacheConfig"]);
+    RedisCache cache(workerConfig["redisCacheConfig"]);
 
     SimplePocoHandler handler(host, port);
     AMQP::Connection connection(&handler, AMQP::Login(user, password), vhost);
@@ -332,7 +311,10 @@ int main()
     channel.declareExchange(exchange, AMQP::direct);
     channel.declareQueue(responseQueue);
     channel.bindQueue(exchange, responseQueue, responseRouting);
-    channel.consume(requestQueue, AMQP::noack).onReceived([&channel, &ts, &exchange, &cache,
+
+    RequestProcessor rp(ts, cache, channel, exchange, responseRouting);
+
+    channel.consume(requestQueue, AMQP::noack).onReceived([&channel, &ts, &exchange, &cache, &rp,
         &responseRouting](const AMQP::Message &message, uint64_t deliveryTag, bool redelivered) {
         std::cout << "[x] Received " << message.body() << std::endl
                 << std::endl;
@@ -354,55 +336,55 @@ int main()
         {
             if (method == "register")
             {
-                processRegisterRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processRegisterRequest(args);
             }
             else if (method == "login")
             {
-                processLoginRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processLoginRequest(args);
             }
             else if (method == "delete-buy")
             {
-                processDeleteBuyRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processDeleteBuyRequest(args);
             }
             else if (method == "delete-sell")
             {
-                processDeleteSellRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processDeleteSellRequest(args);
             }
             else if (method == "buy")
             {
-                processBuyRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processBuyRequest(args);
             }
             else if (method == "sell")
             {
-                processSellRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processSellRequest(args);
             }
             else if (method == "buy-tree")
             {
-                processBuyTreeRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processBuyTreeRequest(args);
             }
             else if (method == "sell-tree")
             {
-                processSellTreeRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processSellTreeRequest(args);
             }
             else if (method == "pending-buy")
             {
-                processPendingBuyOrderRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processPendingBuyOrderRequest(args);
             }
             else if (method == "pending-sell")
             {
-                processPendingSellOrderRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processPendingSellOrderRequest(args);
             }
             else if (method == "buy-history")
             {
-                processBuyHistoryRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processBuyHistoryRequest(args);
             }
             else if (method == "sell-history")
             {
-                processSellHistoryRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processSellHistoryRequest(args);
             }
             else
             {
-                processUnknownRequest(ts, args, cache, channel, exchange, responseRouting);
+                rp.processUnknownRequest(args);
             }
         }
         catch (const std::exception &e)
